@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+
+# Raw datasets: keep only the directory placeholder in git.
+data/raw/**
+!data/raw/
+!data/raw/.gitkeep
