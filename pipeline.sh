@@ -11,6 +11,7 @@ DATASET="${DATASET:-$BENCH_DIR/events_${DATASET_SIZE}.jsonl}"
 RUN_EXTRACT="${RUN_EXTRACT:-0}"
 RUN_EXPERIMENTS="${RUN_EXPERIMENTS:-0}"
 SKIP_FAILURE="${SKIP_FAILURE:-0}"
+ENV_CREATED=0
 
 log() {
   printf '\n==> %s\n' "$*"
@@ -29,16 +30,53 @@ need_cmd docker
 if [ ! -f .env ]; then
   log "Criando .env a partir de .env.example"
   cp .env.example .env
+  ENV_CREATED=1
+  printf 'Aviso: .env foi criado com valores vazios. Edite .env antes de usar RUN_EXTRACT=1.\n' >&2
+fi
+
+load_env() {
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+}
+
+env_value_missing() {
+  local name="$1"
+  local value="${!name:-}"
+  [ -z "$value" ]
+}
+
+raw_has_input() {
+  find "$RAW_DIR" -type f ! -name '.gitkeep' -print -quit 2>/dev/null | grep -q .
+}
+
+load_env
+
+if env_value_missing MONGO_URI; then
+  printf 'Aviso: MONGO_URI ausente no .env. Usando valor padrão dos scripts.\n' >&2
 fi
 
 log "Sincronizando dependências do projeto"
 uv sync
 
 if [ "$RUN_EXTRACT" = "1" ]; then
+  if env_value_missing FOGO_CRUZADO_EMAIL || env_value_missing FOGO_CRUZADO_PASSWORD; then
+    printf 'Erro: RUN_EXTRACT=1 requer FOGO_CRUZADO_EMAIL e FOGO_CRUZADO_PASSWORD configurados no .env.\n' >&2
+    printf 'Edite .env com suas credenciais ou rode sem extração usando RUN_EXTRACT=0.\n' >&2
+    exit 1
+  fi
   log "Executando extração raw"
   uv run --script scripts/extract_raw_all.py
 else
   log "Pulando extração raw (defina RUN_EXTRACT=1 para baixar fontes)"
+  if [ "$ENV_CREATED" = "1" ]; then
+    printf 'Aviso: como o .env acabou de ser criado, a extração foi pulada. A pipeline usará dados já presentes em %s, se existirem.\n' "$RAW_DIR" >&2
+  fi
+  if ! raw_has_input; then
+    printf 'Erro: não há dados raw em %s. Configure .env e rode RUN_EXTRACT=1 ./pipeline.sh, ou coloque dados raw nesse diretório.\n' "$RAW_DIR" >&2
+    exit 1
+  fi
 fi
 
 log "Inspecionando camada raw"
