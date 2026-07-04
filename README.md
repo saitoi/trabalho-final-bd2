@@ -18,10 +18,16 @@ Para executar o fluxo ponta a ponta em um clone novo, use:
 ./pipeline.sh
 ```
 
-Se `.env` não existir, o script cria uma cópia de `.env.example` e avisa o usuário. Por padrão ele não baixa dados raw novos; usa os arquivos já presentes em `data/raw/`. Para executar a extração antes da normalização, preencha `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD` no `.env` e rode:
+Se `.env` não existir, o script cria uma cópia de `.env.example` e avisa o usuário. Por padrão ele tenta completar `data/raw/`, rodando extração apenas para fontes padrão ainda ausentes. Fontes manuais geram instruções, e Fogo Cruzado só é baixado se `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD` estiverem preenchidos no `.env`.
 
 ```bash
 RUN_EXTRACT=1 ./pipeline.sh
+```
+
+Para pular qualquer tentativa de extração e usar somente os dados raw já presentes:
+
+```bash
+RUN_EXTRACT=0 ./pipeline.sh
 ```
 
 Para incluir os experimentos completos:

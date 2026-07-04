@@ -8,7 +8,7 @@ RAW_DIR="${RAW_DIR:-data/raw}"
 DATASET_SIZE="${DATASET_SIZE:-100000}"
 BENCH_DIR="${BENCH_DIR:-data/processed/benchmarks}"
 DATASET="${DATASET:-$BENCH_DIR/events_${DATASET_SIZE}.jsonl}"
-RUN_EXTRACT="${RUN_EXTRACT:-0}"
+RUN_EXTRACT="${RUN_EXTRACT:-1}"
 RUN_EXPERIMENTS="${RUN_EXPERIMENTS:-0}"
 SKIP_FAILURE="${SKIP_FAILURE:-0}"
 ENV_CREATED=0
@@ -51,6 +51,61 @@ raw_has_input() {
   find "$RAW_DIR" -type f ! -name '.gitkeep' -print -quit 2>/dev/null | grep -q .
 }
 
+source_present() {
+  local source="$1"
+  case "$source" in
+    fogo_cruzado)
+      find "$RAW_DIR/fogo_cruzado/occurrences" -type f -name '*.jsonl' -print -quit 2>/dev/null | grep -q .
+      ;;
+    inpe_queimadas)
+      find "$RAW_DIR/inpe_bdqueimadas/focos_csv_mensal_brasil/files" -type f \( -name '*.csv' -o -name '*.zip' \) -print -quit 2>/dev/null | grep -q .
+      ;;
+    inmet)
+      find "$RAW_DIR/inmet/dados_historicos_anuais" -type f -name '*.zip' -print -quit 2>/dev/null | grep -q .
+      ;;
+    ibge)
+      find "$RAW_DIR/ibge" -type f \( -name '*.json' -o -name '*.geojson' \) -print -quit 2>/dev/null | grep -q .
+      ;;
+    osm_overpass)
+      find "$RAW_DIR/osm/overpass" -type f -name '*.json' -print -quit 2>/dev/null | grep -q .
+      ;;
+    nyc311)
+      find "$RAW_DIR/nyc311" -maxdepth 1 -type f -name '*.jsonl' -print -quit 2>/dev/null | grep -q .
+      ;;
+    cemaden_manual)
+      [ -f "$RAW_DIR/cemaden/manual_downloads_manifest.json" ] || [ -f "$RAW_DIR/cemaden/MANUAL_DOWNLOAD.md" ]
+      ;;
+    portal_rio_manual)
+      [ -f "$RAW_DIR/portal_rio_1746/manual_downloads_manifest.json" ] || [ -f "$RAW_DIR/portal_rio_1746/MANUAL_DOWNLOAD.md" ]
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+missing_sources_csv() {
+  local defaults=(
+    fogo_cruzado
+    inpe_queimadas
+    inmet
+    ibge
+    osm_overpass
+    nyc311
+    cemaden_manual
+    portal_rio_manual
+  )
+  local missing=()
+  local source
+  for source in "${defaults[@]}"; do
+    if ! source_present "$source"; then
+      missing+=("$source")
+    fi
+  done
+  local IFS=,
+  printf '%s' "${missing[*]}"
+}
+
 load_env
 
 if env_value_missing MONGO_URI; then
@@ -61,13 +116,25 @@ log "Sincronizando dependências do projeto"
 uv sync
 
 if [ "$RUN_EXTRACT" = "1" ]; then
-  if env_value_missing FOGO_CRUZADO_EMAIL || env_value_missing FOGO_CRUZADO_PASSWORD; then
-    printf 'Erro: RUN_EXTRACT=1 requer FOGO_CRUZADO_EMAIL e FOGO_CRUZADO_PASSWORD configurados no .env.\n' >&2
-    printf 'Edite .env com suas credenciais ou rode sem extração usando RUN_EXTRACT=0.\n' >&2
-    exit 1
+  MISSING_SOURCES="${SOURCES:-$(missing_sources_csv)}"
+  if [ -z "$MISSING_SOURCES" ]; then
+    log "Todas as fontes padrão já possuem arquivos em $RAW_DIR; extração pulada"
+  else
+    if printf ',%s,' "$MISSING_SOURCES" | grep -q ',fogo_cruzado,'; then
+      if env_value_missing FOGO_CRUZADO_EMAIL || env_value_missing FOGO_CRUZADO_PASSWORD; then
+        printf 'Aviso: Fogo Cruzado está ausente, mas FOGO_CRUZADO_EMAIL/FOGO_CRUZADO_PASSWORD não estão configurados no .env.\n' >&2
+        printf 'Aviso: a extração continuará para as demais fontes. Preencha .env e rode novamente para baixar Fogo Cruzado.\n' >&2
+        MISSING_SOURCES="$(printf '%s' "$MISSING_SOURCES" | awk -v RS=, -v ORS=, '$0 != "fogo_cruzado" { print }' | sed 's/,$//')"
+      fi
+    fi
+
+    if [ -n "$MISSING_SOURCES" ]; then
+      log "Executando extração incremental para fontes ausentes: $MISSING_SOURCES"
+      uv run --script scripts/extract_raw_all.py --sources "$MISSING_SOURCES"
+    else
+      log "Nenhuma fonte automática restante para extrair"
+    fi
   fi
-  log "Executando extração raw"
-  uv run --script scripts/extract_raw_all.py
 else
   log "Pulando extração raw (defina RUN_EXTRACT=1 para baixar fontes)"
   if [ "$ENV_CREATED" = "1" ]; then
