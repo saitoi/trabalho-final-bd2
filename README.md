@@ -5,30 +5,30 @@ Pipeline de extração RAW para o trabalho de BD II.
 ## Instalação
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+# baixe uv
+# unix: curl -LsSf https://astral.sh/uv/install.sh | sh
+# windows: consulte https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_2
+uv sync
 ```
 
-Edite o `.env`, principalmente `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD`.
+Edite o `.env`, adicione `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD`.
 
 ## Rodar tudo
 
 ```bash
-python scripts/extract_raw_all.py
+uv run scripts/extract_raw_all.py
 ```
 
 ## Rodar fontes específicas
 
 ```bash
-python scripts/extract_raw_all.py --sources fogo_cruzado,inpe_queimadas,ibge
+uv run scripts/extract_raw_all.py --sources fogo_cruzado,inpe_queimadas,ibge
 ```
 
 ## Teste sem baixar
 
 ```bash
-python scripts/extract_raw_all.py --dry-run
+uv run scripts/extract_raw_all.py --dry-run
 ```
 
 ## Observações
