@@ -1,4 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "python-dotenv>=1.0.1",
+#   "requests>=2.32.4",
+#   "tqdm>=4.68.3",
+# ]
+# ///
 """
 Pipeline raw para fontes de eventos urbanos e contexto espacial.
 

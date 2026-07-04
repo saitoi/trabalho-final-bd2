@@ -1,38 +1,66 @@
-# Urban Events Raw Pipeline
+# Sistema Distribuído de Eventos Urbanos - BD II
 
-Pipeline de extração RAW para o trabalho de BD II.
+Projeto acadêmico da disciplina Bancos de Dados II da UFRJ. A solução usa MongoDB em replica set com 3 nós para armazenar, consultar e analisar eventos urbanos normalizados a partir de fontes públicas.
 
-## Instalação
+## Requisitos
 
-```bash
-# baixe uv
-# unix: curl -LsSf https://astral.sh/uv/install.sh | sh
-# windows: consulte https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_2
-uv sync
-```
+- `uv`
+- Docker com Compose
+- Python 3.12, gerenciado pelo `uv`
 
-Edite o `.env`, adicione `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD`.
+As dependências ficam no `pyproject.toml`. Os scripts também possuem shebang compatível com `uv run --script`.
 
-## Rodar tudo
+## Pipeline
 
 ```bash
-uv run scripts/extract_raw_all.py
+uv run --script scripts/inspect_raw_data.py
+
+uv run --script scripts/normalize_events.py \
+  --raw-dir data/raw \
+  --out data/processed/events_normalized.jsonl \
+  --rejected data/processed/events_rejected.jsonl
+
+uv run --script scripts/build_benchmark_datasets.py \
+  --input data/processed/events_normalized.jsonl \
+  --out-dir data/processed/benchmarks \
+  --seed 42
 ```
 
-## Rodar fontes específicas
+Os dados em `data/raw/` nunca são modificados. O Git versiona apenas `data/raw/.gitkeep`.
+
+## MongoDB Distribuído
 
 ```bash
-uv run scripts/extract_raw_all.py --sources fogo_cruzado,inpe_queimadas,ibge
+docker compose -f docker/docker-compose.yml up -d
+uv run --script scripts/wait_for_mongo.py
+uv run --script scripts/create_indexes.py
 ```
 
-## Teste sem baixar
+## Carga e Consultas
 
 ```bash
-uv run scripts/extract_raw_all.py --dry-run
+uv run --script scripts/load_mongo.py \
+  --dataset data/processed/benchmarks/events_100000.jsonl \
+  --drop \
+  --batch-size 1000
+
+uv run --script scripts/run_queries.py --query stats-tipo
+uv run --script scripts/run_queries.py --query tipo --tipo Incêndio
+uv run --script scripts/run_queries.py --query periodo --inicio 2025-01-01 --fim 2025-12-31
+uv run --script scripts/run_queries.py --query raio --lat -22.9068 --lon -43.1729 --km 5
+uv run --script scripts/run_queries.py --query gravidade --min 3
 ```
 
-## Observações
+## Experimentos
 
-- Cemaden e Portal Rio 1746 geram pastas de download manual e manifests.
-- OSM Geofabrik fica desligado por padrão porque os arquivos são grandes.
-- A camada RAW não transforma os dados para o schema final; faça isso em outro script.
+```bash
+uv run --script scripts/run_experiments.py
+```
+
+Esse comando mede inserção, consultas nos três volumes e tolerância a falhas com parada/reinício de um nó. Use `--skip-failure` para evitar comandos `docker stop/start`.
+
+## Fontes e Sintéticos
+
+A normalização prioriza dados reais do Rio de Janeiro e do Brasil. Dados sintéticos só são gerados se os registros reais disponíveis não bastarem para atingir a carga alvo, e sempre ficam marcados com `origem.fonte = "synthetic_rio"`.
+
+No Docker Desktop, a URI padrão usa `host.docker.internal` para que o replica set anuncie endereços resolvíveis tanto pelos containers quanto pelos scripts executados no host.
