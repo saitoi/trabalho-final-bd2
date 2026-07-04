@@ -116,7 +116,16 @@ def main() -> None:
     elif args.query == "stats-tipo":
         result = list(collection.aggregate([{"$group": {"_id": "$tipo", "total": {"$sum": 1}}}, {"$sort": {"total": -1}}]))
     elif args.query == "stats-bairro":
-        result = list(collection.aggregate([{"$group": {"_id": "$bairro", "total": {"$sum": 1}}}, {"$sort": {"total": -1}}, {"$limit": 50}]))
+        result = list(
+            collection.aggregate(
+                [
+                    {"$match": {"bairro": {"$nin": [None, ""]}}},
+                    {"$group": {"_id": "$bairro", "total": {"$sum": 1}}},
+                    {"$sort": {"total": -1}},
+                    {"$limit": 50},
+                ]
+            )
+        )
     else:
         result = list(
             collection.aggregate(

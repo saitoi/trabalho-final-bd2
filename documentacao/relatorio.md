@@ -28,7 +28,16 @@ O ambiente distribuído usa Docker Compose com três nós MongoDB no replica set
 
 A preparação dos dados produziu 152.650 eventos normalizados reais. Os recortes de benchmark foram gerados com 1.000, 50.000 e 100.000 registros. No recorte de 100.000 eventos, 82.262 registros são do Brasil. Dados sintéticos não foram necessários, pois os dados reais disponíveis superaram a carga alvo.
 
-Os tempos de inserção, consulta e falha de nó devem ser preenchidos após executar `uv run --script scripts/run_experiments.py` com o Docker daemon ativo.
+Os experimentos no MongoDB replica set produziram os seguintes tempos:
+
+| Teste | 1.000 registros | 50.000 registros | 100.000 registros |
+| --- | ---: | ---: | ---: |
+| Inserção | 0,063 s | 4,145 s | 8,836 s |
+| Consulta por tipo `Incêndio` | 0,001 s | 0,010 s | 0,026 s |
+| Consulta por período 2025 | 0,001 s | 0,002 s | 0,003 s |
+| Consulta geográfica Centro-RJ, 5 km | 0,001 s | 0,046 s | 0,103 s |
+
+No teste de falha, a agregação por tipo retornou 100.000 registros antes e depois de parar `mongo2`. O tempo subiu de 0,108 s para 0,176 s e os resultados permaneceram consistentes. Após religar o nó, a recuperação observada foi de 5,008 s.
 
 ## 8. Discussão
 

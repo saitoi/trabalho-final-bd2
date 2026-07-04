@@ -12,6 +12,24 @@ As dependências ficam no `pyproject.toml`. Os scripts também possuem shebang c
 
 ## Pipeline
 
+Para executar o fluxo ponta a ponta em um clone novo, use:
+
+```bash
+./pipeline.sh
+```
+
+Por padrão ele não baixa dados raw novos. Para executar a extração antes da normalização:
+
+```bash
+RUN_EXTRACT=1 ./pipeline.sh
+```
+
+Para incluir os experimentos completos:
+
+```bash
+RUN_EXPERIMENTS=1 ./pipeline.sh
+```
+
 ```bash
 uv run --script scripts/inspect_raw_data.py
 
