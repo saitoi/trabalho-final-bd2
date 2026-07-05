@@ -23,3 +23,6 @@ data/samples/**
 !data/samples/
 !data/samples/.gitkeep
 *.swp
+
+# Node.js dependencies — always install locally, never commit.
+node_modules/
