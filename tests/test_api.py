@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.database import get_events_collection, get_mongo_client
 from app.main import app
-from app.routes.benchmarks import get_benchmark_results_path
+from app.routes.benchmarks import get_benchmark_results_path, get_benchmark_summary_path
 
 
 class FakeCursor:
@@ -344,11 +344,61 @@ def test_benchmarks_results_reads_local_file(tmp_path):
         "generated_at": "2026-07-04T20:59:43Z",
         "results": [{"test": "insert", "size": 1000, "seconds": 0.1, "count": 1000}],
         "failure": {"skipped": False, "consistent": True},
+        "datasets": {},
     }
+
+
+def test_benchmarks_results_falls_back_to_dataset_summary(tmp_path):
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(
+        """
+        {
+          "generated_at": "2026-07-04T20:32:05Z",
+          "datasets": {
+            "1000": {
+              "path": "data/processed/benchmarks/events_1000.jsonl",
+              "total": 1000,
+              "by_type": {"Incêndio": 83},
+              "by_country": {"Brasil": 419},
+              "rio_de_janeiro": 240,
+              "brasil": 419
+            }
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+    override_dependency(get_benchmark_results_path, tmp_path / "missing-results.json")
+    override_dependency(get_benchmark_summary_path, summary_path)
+
+    try:
+        response = TestClient(app).get("/benchmarks/results")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["available"] is True
+    assert response.json()["generated_at"] == "2026-07-04T20:32:05Z"
+    assert response.json()["results"] == []
+    assert response.json()["failure"] is None
+    assert response.json()["datasets"]["1000"]["total"] == 1000
+
+
+def test_benchmark_paths_are_resolved_from_project_root(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    results_path = get_benchmark_results_path()
+    summary_path = get_benchmark_summary_path()
+
+    assert results_path.is_absolute()
+    assert summary_path.is_absolute()
+    assert results_path.as_posix().endswith("/data/processed/experiments/results.json")
+    assert summary_path.as_posix().endswith("/data/processed/benchmarks/summary.json")
 
 
 def test_benchmarks_results_returns_empty_state_when_file_is_missing(tmp_path):
     override_dependency(get_benchmark_results_path, tmp_path / "missing.json")
+    override_dependency(get_benchmark_summary_path, tmp_path / "missing-summary.json")
 
     try:
         response = TestClient(app).get("/benchmarks/results")
@@ -361,4 +411,5 @@ def test_benchmarks_results_returns_empty_state_when_file_is_missing(tmp_path):
         "generated_at": None,
         "results": [],
         "failure": None,
+        "datasets": {},
     }

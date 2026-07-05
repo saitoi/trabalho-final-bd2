@@ -44,6 +44,7 @@ const TEST_LABELS = {
 const chartConfig = {
   seconds: { label: 'Segundos', color: 'var(--primary)' },
   count: { label: 'Registros', color: 'var(--accent)' },
+  total: { label: 'Eventos', color: 'var(--primary)' },
 }
 
 function formatSeconds(value) {
@@ -100,10 +101,28 @@ export default function BenchmarkPage() {
   }, [])
 
   const rows = payload?.results ?? []
+  const datasetRows = useMemo(
+    () =>
+      Object.entries(payload?.datasets ?? {})
+        .map(([size, dataset]) => ({
+          size: Number(size),
+          label: formatInt(size),
+          total: dataset.total ?? 0,
+          path: dataset.path,
+          byType: dataset.by_type ?? {},
+          byCountry: dataset.by_country ?? {},
+          brazil: dataset.brasil ?? 0,
+          rio: dataset.rio_de_janeiro ?? 0,
+        }))
+        .sort((left, right) => left.size - right.size),
+    [payload],
+  )
   const inserts = rows.filter((row) => row.test === 'insert')
   const queries = rows.filter((row) => !['insert', 'failure_before', 'failure_after'].includes(row.test))
   const failure = payload?.failure
   const largestInsert = inserts.at(-1)
+  const largestDataset = datasetRows.at(-1)
+  const benchmarkOnly = rows.length === 0 && datasetRows.length > 0
 
   const queryChart = useMemo(
     () =>
@@ -127,7 +146,29 @@ export default function BenchmarkPage() {
     )
   }
 
-  if (error || !payload?.available) {
+  if (error) {
+    return (
+      <div className="p-4 md:p-6">
+        <Empty className="min-h-96 border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Database />
+            </EmptyMedia>
+            <EmptyTitle>API indisponivel</EmptyTitle>
+            <EmptyDescription>
+              O frontend nao conseguiu acessar `http://127.0.0.1:8000/benchmarks/results`. Inicie os dois serviços com `./dev.sh` ou reinicie o backend se ele ja estava aberto.
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button onClick={load} variant="outline">
+            <RefreshCw data-icon="inline-start" />
+            Atualizar
+          </Button>
+        </Empty>
+      </div>
+    )
+  }
+
+  if (!payload?.available) {
     return (
       <div className="p-4 md:p-6">
         <Empty className="min-h-96 border">
@@ -137,7 +178,7 @@ export default function BenchmarkPage() {
             </EmptyMedia>
             <EmptyTitle>Benchmarks indisponiveis</EmptyTitle>
             <EmptyDescription>
-              Execute `./pipeline.sh` ou `uv run scripts/run_experiments.py` para gerar `data/processed/experiments/results.json`.
+              Execute `./pipeline.sh` para gerar `data/processed/benchmarks/summary.json` ou `uv run scripts/run_experiments.py` para gerar `data/processed/experiments/results.json`.
             </EmptyDescription>
           </EmptyHeader>
           <Button onClick={load} variant="outline">
@@ -158,7 +199,9 @@ export default function BenchmarkPage() {
             <Badge variant="secondary">{payload.generated_at?.slice(0, 10) ?? 'sem data'}</Badge>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Medicoes gravadas pelos scripts de carga, consulta e falha de no para os recortes de 1.000, 50.000 e 100.000 eventos.
+            {benchmarkOnly
+              ? 'Recortes de benchmark gerados pela pipeline. Execute os experimentos completos para preencher tempos de carga, consulta e falha.'
+              : 'Medicoes gravadas pelos scripts de carga, consulta e falha de no para os recortes de 1.000, 50.000 e 100.000 eventos.'}
           </p>
         </div>
         <Button onClick={load} variant="outline">
@@ -169,15 +212,19 @@ export default function BenchmarkPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard
-          title="Maior carga"
-          value={formatInt(largestInsert?.count)}
-          description={`Inserida em ${formatSeconds(largestInsert?.seconds)}.`}
+          title={benchmarkOnly ? 'Maior dataset' : 'Maior carga'}
+          value={formatInt(largestInsert?.count ?? largestDataset?.total)}
+          description={
+            benchmarkOnly
+              ? `${datasetRows.length} recortes gerados em data/processed/benchmarks.`
+              : `Inserida em ${formatSeconds(largestInsert?.seconds)}.`
+          }
           icon={Database}
         />
         <MetricCard
           title="Consultas medidas"
           value={formatInt(queries.length)}
-          description="Tipo, periodo e raio nos tres volumes."
+          description={benchmarkOnly ? 'Ainda nao executadas.' : 'Tipo, periodo e raio nos tres volumes.'}
           icon={Activity}
         />
         <MetricCard
@@ -204,75 +251,134 @@ export default function BenchmarkPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+      {benchmarkOnly && (
+        <Alert>
+          <Database />
+          <AlertTitle>Datasets prontos, experimentos pendentes</AlertTitle>
+          <AlertDescription>
+            A pipeline gerou os arquivos de benchmark, mas `data/processed/experiments/results.json` ainda nao existe. Rode `RUN_EXPERIMENTS=1 ./pipeline.sh` ou `uv run --script scripts/run_experiments.py` para preencher os tempos.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {benchmarkOnly ? (
         <Card>
           <CardHeader>
-            <CardTitle>Tempo de consulta</CardTitle>
-            <CardDescription>Comparacao por teste e volume carregado.</CardDescription>
+            <CardTitle>Recortes gerados</CardTitle>
+            <CardDescription>Volumes disponiveis em `data/processed/benchmarks`.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[360px] w-full">
-              <BarChart data={queryChart} margin={{ left: 8, right: 16 }}>
+              <BarChart data={datasetRows} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis dataKey="name" hide />
-                <YAxis tickLine={false} axisLine={false} width={72} tickFormatter={formatSeconds} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatSeconds(value)} />} />
-                <Bar dataKey="seconds" radius={[6, 6, 0, 0]}>
-                  {queryChart.map((_, index) => (
-                    <Cell key={index} fill={index % 2 === 0 ? 'var(--primary)' : 'var(--accent)'} />
-                  ))}
-                </Bar>
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} width={84} tickFormatter={formatInt} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="total" radius={[6, 6, 0, 0]} fill="var(--primary)" />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tempo de consulta</CardTitle>
+              <CardDescription>Comparacao por teste e volume carregado.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[360px] w-full">
+                <BarChart data={queryChart} margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="name" hide />
+                  <YAxis tickLine={false} axisLine={false} width={72} tickFormatter={formatSeconds} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatSeconds(value)} />} />
+                  <Bar dataKey="seconds" radius={[6, 6, 0, 0]}>
+                    {queryChart.map((_, index) => (
+                      <Cell key={index} fill={index % 2 === 0 ? 'var(--primary)' : 'var(--accent)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Insercao por volume</CardTitle>
-            <CardDescription>Tempo total de carga batch.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[360px] w-full">
-              <LineChart data={inserts} margin={{ left: 8, right: 16 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="size" tickLine={false} axisLine={false} tickFormatter={formatInt} />
-                <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatSeconds} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatSeconds(value)} />} />
-                <Line type="monotone" dataKey="seconds" stroke="var(--primary)" strokeWidth={2} dot />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Insercao por volume</CardTitle>
+              <CardDescription>Tempo total de carga batch.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[360px] w-full">
+                <LineChart data={inserts} margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="size" tickLine={false} axisLine={false} tickFormatter={formatInt} />
+                  <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatSeconds} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatSeconds(value)} />} />
+                  <Line type="monotone" dataKey="seconds" stroke="var(--primary)" strokeWidth={2} dot />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Tabela de medicoes</CardTitle>
-          <CardDescription>Dados brutos do arquivo de resultados.</CardDescription>
+          <CardTitle>{benchmarkOnly ? 'Tabela de datasets' : 'Tabela de medicoes'}</CardTitle>
+          <CardDescription>
+            {benchmarkOnly ? 'Dados do summary de benchmarks.' : 'Dados brutos do arquivo de resultados.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Teste</TableHead>
-                  <TableHead>Volume</TableHead>
-                  <TableHead>Tempo</TableHead>
-                  <TableHead className="text-right">Resultado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row, index) => (
-                  <TableRow key={`${row.test}-${row.size}-${index}`}>
-                    <TableCell className="font-medium">{TEST_LABELS[row.test] ?? row.test}</TableCell>
-                    <TableCell>{formatInt(row.size)}</TableCell>
-                    <TableCell>{formatSeconds(row.seconds)}</TableCell>
-                    <TableCell className="text-right">{formatInt(row.count)}</TableCell>
+            {benchmarkOnly ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Volume</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Brasil</TableHead>
+                    <TableHead>Rio de Janeiro</TableHead>
+                    <TableHead>Tipos</TableHead>
+                    <TableHead>Caminho</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {datasetRows.map((row) => (
+                    <TableRow key={row.size}>
+                      <TableCell className="font-medium">{row.label}</TableCell>
+                      <TableCell>{formatInt(row.total)}</TableCell>
+                      <TableCell>{formatInt(row.brazil)}</TableCell>
+                      <TableCell>{formatInt(row.rio)}</TableCell>
+                      <TableCell>{Object.keys(row.byType).length}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{row.path}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Teste</TableHead>
+                    <TableHead>Volume</TableHead>
+                    <TableHead>Tempo</TableHead>
+                    <TableHead className="text-right">Resultado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row, index) => (
+                    <TableRow key={`${row.test}-${row.size}-${index}`}>
+                      <TableCell className="font-medium">{TEST_LABELS[row.test] ?? row.test}</TableCell>
+                      <TableCell>{formatInt(row.size)}</TableCell>
+                      <TableCell>{formatSeconds(row.seconds)}</TableCell>
+                      <TableCell className="text-right">{formatInt(row.count)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </CardContent>
       </Card>
