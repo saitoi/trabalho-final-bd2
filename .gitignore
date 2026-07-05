@@ -26,3 +26,8 @@ data/samples/**
 
 # Node.js dependencies — always install locally, never commit.
 node_modules/
+
+# Documentation: keep folder structure, ignore contents.
+docs/**
+!docs/
+!docs/.gitkeep
