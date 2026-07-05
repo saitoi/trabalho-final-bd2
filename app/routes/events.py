@@ -1,13 +1,31 @@
+import re
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pymongo.collection import Collection
 
 from app.database import get_events_collection
-from app.models import CreateEventResponse, EventCreate, EventRead, EventSearchResponse
+from app.models import (
+    CreateEventResponse,
+    EventCreate,
+    EventFilterOptions,
+    EventRead,
+    EventSearchResponse,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
 EventsCollectionDep = Annotated[Collection, Depends(get_events_collection)]
+
+ALLOWED_DOCUMENT_FIELDS = {
+    "origem.fonte",
+    "origem.idOriginal",
+    "origem.arquivoRaw",
+    "reportante.tipo",
+    "reportante.identificador",
+    "metadados.categoriaOriginal",
+    "metadados.extraidoEm",
+    "metadados.linhaOriginal",
+}
 
 
 def _strip_id(doc: dict[str, Any]) -> dict[str, Any]:
@@ -24,6 +42,38 @@ def _date_boundaries(inicio: str | None, fim: str | None) -> dict[str, str] | No
     return date_query or None
 
 
+def _compact_query(values: dict[str, str | None]) -> dict[str, str]:
+    return {field: value for field, value in values.items() if value}
+
+
+def _distinct_strings(eventos: Collection, field: str, query: dict[str, Any] | None = None) -> list[str]:
+    values = [value for value in eventos.distinct(field, query or {}) if isinstance(value, str) and value.strip()]
+    return sorted(values, key=str.casefold)
+
+
+def _document_field_query(
+    *,
+    field: str | None,
+    operator: str,
+    value: str | None,
+) -> dict[str, Any]:
+    if not field and not value:
+        return {}
+    if not field or value is None or value == "":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="documentField and documentValue must be provided together",
+        )
+    if field not in ALLOWED_DOCUMENT_FIELDS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="documentField is not allowed",
+        )
+    if operator == "equals":
+        return {field: value}
+    return {field: {"$regex": re.escape(value), "$options": "i"}}
+
+
 def _search_query(
     *,
     q: str | None,
@@ -36,6 +86,9 @@ def _search_query(
     min_gravidade: int | None,
     inicio: str | None,
     fim: str | None,
+    document_field: str | None,
+    document_operator: str,
+    document_value: str | None,
 ) -> dict[str, Any]:
     query: dict[str, Any] = {}
     if q:
@@ -64,7 +117,33 @@ def _search_query(
     date_query = _date_boundaries(inicio, fim)
     if date_query:
         query["dataHora"] = date_query
+    query.update(
+        _document_field_query(
+            field=document_field,
+            operator=document_operator,
+            value=document_value,
+        )
+    )
     return query
+
+
+@router.get("/filter-options")
+def filter_options(
+    eventos: EventsCollectionDep,
+    pais: Annotated[str | None, Query()] = None,
+    estado: Annotated[str | None, Query(max_length=2)] = None,
+    cidade: Annotated[str | None, Query()] = None,
+) -> EventFilterOptions:
+    pais_query: dict[str, Any] = {}
+    estado_query = _compact_query({"pais": pais})
+    cidade_query = _compact_query({"pais": pais, "estado": estado})
+    bairro_query = _compact_query({"pais": pais, "estado": estado, "cidade": cidade})
+    return {
+        "paises": _distinct_strings(eventos, "pais", pais_query),
+        "estados": _distinct_strings(eventos, "estado", estado_query),
+        "cidades": _distinct_strings(eventos, "cidade", cidade_query),
+        "bairros": _distinct_strings(eventos, "bairro", bairro_query),
+    }
 
 
 @router.get("/search")
@@ -80,6 +159,9 @@ def search_events(
     minGravidade: Annotated[int | None, Query(ge=1, le=5)] = None,
     inicio: Annotated[str | None, Query()] = None,
     fim: Annotated[str | None, Query()] = None,
+    documentField: Annotated[str | None, Query()] = None,
+    documentOperator: Annotated[str, Query(pattern="^(contains|equals)$")] = "contains",
+    documentValue: Annotated[str | None, Query(max_length=240)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     pageSize: Annotated[int, Query(ge=1, le=200)] = 25,
     sortBy: Annotated[str, Query()] = "dataHora",
@@ -98,6 +180,9 @@ def search_events(
         min_gravidade=minGravidade,
         inicio=inicio,
         fim=fim,
+        document_field=documentField,
+        document_operator=documentOperator,
+        document_value=documentValue,
     )
     total = eventos.count_documents(query)
     cursor = eventos.find(query).sort([(sort_field, direction)]).skip((page - 1) * pageSize).limit(pageSize)

@@ -53,6 +53,13 @@ class EventSearchResponse(BaseModel):
     pageSize: int
 
 
+class EventFilterOptions(BaseModel):
+    paises: list[str]
+    estados: list[str]
+    cidades: list[str]
+    bairros: list[str]
+
+
 class CreateEventResponse(BaseModel):
     inserted_id: str
 

@@ -58,6 +58,12 @@ class FakeEventsCollection:
             }
         ]
         self.aggregate_docs = [{"_id": "Incêndio", "total": 3}]
+        self.distinct_values = {
+            "pais": ["Brasil", "Estados Unidos"],
+            "estado": ["RJ", "SP"],
+            "cidade": ["Rio de Janeiro", "Sao Paulo"],
+            "bairro": ["Centro", "Copacabana"],
+        }
 
     def find(self, query):
         self.find_calls.append(query)
@@ -70,6 +76,10 @@ class FakeEventsCollection:
     def count_documents(self, query):
         self.count_calls.append(query)
         return len(self.find_docs)
+
+    def distinct(self, field, query=None):
+        self.find_calls.append({"distinct": field, "query": query or {}})
+        return self.distinct_values.get(field, [])
 
     def insert_one(self, payload):
         self.inserted.append(payload)
@@ -263,6 +273,79 @@ def test_search_events_returns_paginated_results_with_filters():
     assert query["dataHora"]["$gte"].startswith("2025-01-01")
     assert query["dataHora"]["$lte"].startswith("2025-12-31")
     assert "$or" in query
+
+
+def test_search_events_filters_by_allowed_document_field():
+    fake_events = FakeEventsCollection()
+    override_dependency(get_events_collection, fake_events)
+
+    try:
+        response = TestClient(app).get(
+            "/events/search",
+            params={
+                "documentField": "metadados.categoriaOriginal",
+                "documentOperator": "contains",
+                "documentValue": "queimada",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    query = fake_events.find_calls[-1]
+    assert query["metadados.categoriaOriginal"] == {
+        "$regex": "queimada",
+        "$options": "i",
+    }
+
+
+def test_search_events_rejects_unlisted_document_field():
+    fake_events = FakeEventsCollection()
+    override_dependency(get_events_collection, fake_events)
+
+    try:
+        response = TestClient(app).get(
+            "/events/search",
+            params={
+                "documentField": "$where",
+                "documentValue": "this.total > 0",
+            },
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 400
+    assert fake_events.find_calls == []
+
+
+def test_event_filter_options_returns_existing_location_values():
+    fake_events = FakeEventsCollection()
+    override_dependency(get_events_collection, fake_events)
+
+    try:
+        response = TestClient(app).get(
+            "/events/filter-options",
+            params={"pais": "Brasil", "estado": "RJ", "cidade": "Rio de Janeiro"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "paises": ["Brasil", "Estados Unidos"],
+        "estados": ["RJ", "SP"],
+        "cidades": ["Rio de Janeiro", "Sao Paulo"],
+        "bairros": ["Centro", "Copacabana"],
+    }
+    assert {"distinct": "estado", "query": {"pais": "Brasil"}} in fake_events.find_calls
+    assert {
+        "distinct": "cidade",
+        "query": {"pais": "Brasil", "estado": "RJ"},
+    } in fake_events.find_calls
+    assert {
+        "distinct": "bairro",
+        "query": {"pais": "Brasil", "estado": "RJ", "cidade": "Rio de Janeiro"},
+    } in fake_events.find_calls
 
 
 def test_stats_summary_returns_dashboard_metrics():
