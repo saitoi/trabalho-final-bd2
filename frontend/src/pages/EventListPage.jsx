@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Search,
 } from 'lucide-react'
-import { createEvent, searchEvents } from '@/api'
+import { createEvent, getEventFilterOptions, searchEvents } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,7 +36,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -59,6 +65,29 @@ const TIPOS = [
 ]
 
 const STATUS = ['Aberto', 'Em andamento', 'Resolvido', 'Fechado']
+
+const DOCUMENT_FIELDS = [
+  { value: 'origem.fonte', label: 'origem.fonte' },
+  { value: 'origem.idOriginal', label: 'origem.idOriginal' },
+  { value: 'origem.arquivoRaw', label: 'origem.arquivoRaw' },
+  { value: 'reportante.tipo', label: 'reportante.tipo' },
+  { value: 'reportante.identificador', label: 'reportante.identificador' },
+  { value: 'metadados.categoriaOriginal', label: 'metadados.categoriaOriginal' },
+  { value: 'metadados.extraidoEm', label: 'metadados.extraidoEm' },
+  { value: 'metadados.linhaOriginal', label: 'metadados.linhaOriginal' },
+]
+
+const DOCUMENT_OPERATORS = [
+  { value: 'contains', label: 'Contem' },
+  { value: 'equals', label: 'Igual a' },
+]
+
+const EMPTY_LOCATION_OPTIONS = {
+  paises: [],
+  estados: [],
+  cidades: [],
+  bairros: [],
+}
 
 const CONTROL_CLASS =
   'h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
@@ -120,15 +149,21 @@ export default function EventListPage() {
     minGravidade: '',
     inicio: '',
     fim: '',
+    documentField: '',
+    documentOperator: 'contains',
+    documentValue: '',
   })
   const [filters, setFilters] = useState({})
   const [events, setEvents] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const [pageSize, setPageSize] = useState(10)
   const [sorting, setSorting] = useState([{ id: 'dataHora', desc: true }])
   const [loading, setLoading] = useState(true)
+  const [filterOptions, setFilterOptions] = useState(EMPTY_LOCATION_OPTIONS)
+  const [filterOptionsLoading, setFilterOptionsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const [form, setForm] = useState(blankForm)
   const [saving, setSaving] = useState(false)
 
@@ -158,6 +193,45 @@ export default function EventListPage() {
   useEffect(() => {
     load()
   }, [filters, page, pageSize, sorting])
+
+  useEffect(() => {
+    let active = true
+
+    const loadFilterOptions = async () => {
+      setFilterOptionsLoading(true)
+      try {
+        const params = cleanFilters({
+          pais: draft.pais,
+          estado: draft.estado,
+          cidade: draft.cidade,
+        })
+        const response = await getEventFilterOptions(params)
+        if (active) {
+          setFilterOptions({
+            paises: response.data.paises ?? [],
+            estados: response.data.estados ?? [],
+            cidades: response.data.cidades ?? [],
+            bairros: response.data.bairros ?? [],
+          })
+        }
+      } catch (err) {
+        if (active) {
+          setFilterOptions(EMPTY_LOCATION_OPTIONS)
+          toast.error('Nao foi possivel carregar as opcoes de localizacao')
+        }
+      } finally {
+        if (active) {
+          setFilterOptionsLoading(false)
+        }
+      }
+    }
+
+    loadFilterOptions()
+
+    return () => {
+      active = false
+    }
+  }, [draft.pais, draft.estado, draft.cidade])
 
   const columns = useMemo(
     () => [
@@ -227,10 +301,35 @@ export default function EventListPage() {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
+  const updateLocationDraft = (key, value) => {
+    setDraft((current) => {
+      const next = { ...current, [key]: value }
+      if (key === 'pais') {
+        next.estado = ''
+        next.cidade = ''
+        next.bairro = ''
+      }
+      if (key === 'estado') {
+        next.cidade = ''
+        next.bairro = ''
+      }
+      if (key === 'cidade') {
+        next.bairro = ''
+      }
+      return next
+    })
+  }
+
   const applyFilters = (event) => {
     event.preventDefault()
     setPage(1)
-    setFilters(cleanFilters(draft))
+    const next = cleanFilters(draft)
+    if (!draft.documentField || !draft.documentValue) {
+      delete next.documentField
+      delete next.documentOperator
+      delete next.documentValue
+    }
+    setFilters(next)
   }
 
   const resetFilters = () => {
@@ -245,6 +344,9 @@ export default function EventListPage() {
       minGravidade: '',
       inicio: '',
       fim: '',
+      documentField: '',
+      documentOperator: 'contains',
+      documentValue: '',
     }
     setDraft(next)
     setFilters({})
@@ -300,6 +402,17 @@ export default function EventListPage() {
     }
   }
 
+  const openEventDocument = (event) => {
+    setSelectedEvent(event)
+  }
+
+  const handleRowKeyDown = (keyboardEvent, event) => {
+    if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+      keyboardEvent.preventDefault()
+      openEventDocument(event)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5 p-4 md:p-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -324,108 +437,192 @@ export default function EventListPage() {
           <CardDescription>Use um ou mais campos. Sem filtros, a API retorna a colecao paginada.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={applyFilters} className="flex flex-col gap-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <Field className="xl:col-span-2">
-                <FieldLabel htmlFor="q">Busca</FieldLabel>
-                <Input
-                  id="q"
-                  placeholder="ID, tipo, cidade, bairro..."
-                  value={draft.q}
-                  onChange={(event) => updateDraft('q', event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="tipo">Tipo</FieldLabel>
-                <select
-                  id="tipo"
-                  className={CONTROL_CLASS}
-                  value={draft.tipo}
-                  onChange={(event) => updateDraft('tipo', event.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {TIPOS.map((tipo) => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="status">Status</FieldLabel>
-                <select
-                  id="status"
-                  className={CONTROL_CLASS}
-                  value={draft.status}
-                  onChange={(event) => updateDraft('status', event.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {STATUS.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="minGravidade">Gravidade minima</FieldLabel>
-                <select
-                  id="minGravidade"
-                  className={CONTROL_CLASS}
-                  value={draft.minGravidade}
-                  onChange={(event) => updateDraft('minGravidade', event.target.value)}
-                >
-                  <option value="">Todas</option>
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <option key={value} value={value}>{value}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-              <Field>
-                <FieldLabel htmlFor="pais">Pais</FieldLabel>
-                <Input id="pais" value={draft.pais} onChange={(event) => updateDraft('pais', event.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="estado">UF</FieldLabel>
-                <Input
-                  id="estado"
-                  maxLength={2}
-                  value={draft.estado}
-                  onChange={(event) => updateDraft('estado', event.target.value.toUpperCase())}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="cidade">Cidade</FieldLabel>
-                <Input id="cidade" value={draft.cidade} onChange={(event) => updateDraft('cidade', event.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="bairro">Bairro</FieldLabel>
-                <Input id="bairro" value={draft.bairro} onChange={(event) => updateDraft('bairro', event.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="inicio">Inicio</FieldLabel>
-                <Input id="inicio" type="date" value={draft.inicio} onChange={(event) => updateDraft('inicio', event.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="fim">Fim</FieldLabel>
-                <Input id="fim" type="date" value={draft.fim} onChange={(event) => updateDraft('fim', event.target.value)} />
-              </Field>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <FieldDescription>
-                Ordenacao nos cabecalhos da tabela; paginacao executada no backend.
-              </FieldDescription>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={resetFilters}>
-                  <RotateCcw data-icon="inline-start" />
-                  Limpar
-                </Button>
-                <Button type="submit">
-                  <Search data-icon="inline-start" />
-                  Filtrar
-                </Button>
+          <form onSubmit={applyFilters}>
+            <FieldGroup className="gap-4">
+              <div className="grid gap-3 lg:grid-cols-12">
+                <Field className="lg:col-span-5">
+                  <FieldLabel htmlFor="q">Busca</FieldLabel>
+                  <Input
+                    id="q"
+                    placeholder="ID, tipo, cidade, bairro..."
+                    value={draft.q}
+                    onChange={(event) => updateDraft('q', event.target.value)}
+                  />
+                </Field>
+                <Field className="lg:col-span-3">
+                  <FieldLabel htmlFor="tipo">Tipo</FieldLabel>
+                  <select
+                    id="tipo"
+                    className={CONTROL_CLASS}
+                    value={draft.tipo}
+                    onChange={(event) => updateDraft('tipo', event.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {TIPOS.map((tipo) => (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="status">Status</FieldLabel>
+                  <select
+                    id="status"
+                    className={CONTROL_CLASS}
+                    value={draft.status}
+                    onChange={(event) => updateDraft('status', event.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {STATUS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="minGravidade">Gravidade minima</FieldLabel>
+                  <select
+                    id="minGravidade"
+                    className={CONTROL_CLASS}
+                    value={draft.minGravidade}
+                    onChange={(event) => updateDraft('minGravidade', event.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <option key={value} value={value}>{value}</option>
+                    ))}
+                  </select>
+                </Field>
               </div>
-            </div>
+
+              <FieldSeparator>Localizacao e periodo</FieldSeparator>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="pais">Pais</FieldLabel>
+                  <select
+                    id="pais"
+                    className={CONTROL_CLASS}
+                    value={draft.pais}
+                    disabled={filterOptionsLoading && filterOptions.paises.length === 0}
+                    onChange={(event) => updateLocationDraft('pais', event.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {filterOptions.paises.map((pais) => (
+                      <option key={pais} value={pais}>{pais}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-1">
+                  <FieldLabel htmlFor="estado">UF</FieldLabel>
+                  <select
+                    id="estado"
+                    className={CONTROL_CLASS}
+                    value={draft.estado}
+                    disabled={filterOptionsLoading && filterOptions.estados.length === 0}
+                    onChange={(event) => updateLocationDraft('estado', event.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {filterOptions.estados.map((estado) => (
+                      <option key={estado} value={estado}>{estado}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="cidade">Cidade</FieldLabel>
+                  <select
+                    id="cidade"
+                    className={CONTROL_CLASS}
+                    value={draft.cidade}
+                    disabled={filterOptionsLoading && filterOptions.cidades.length === 0}
+                    onChange={(event) => updateLocationDraft('cidade', event.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {filterOptions.cidades.map((cidade) => (
+                      <option key={cidade} value={cidade}>{cidade}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-3">
+                  <FieldLabel htmlFor="bairro">Bairro</FieldLabel>
+                  <select
+                    id="bairro"
+                    className={CONTROL_CLASS}
+                    value={draft.bairro}
+                    disabled={filterOptionsLoading && filterOptions.bairros.length === 0}
+                    onChange={(event) => updateLocationDraft('bairro', event.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {filterOptions.bairros.map((bairro) => (
+                      <option key={bairro} value={bairro}>{bairro}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="inicio">Inicio</FieldLabel>
+                  <Input id="inicio" type="date" value={draft.inicio} onChange={(event) => updateDraft('inicio', event.target.value)} />
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="fim">Fim</FieldLabel>
+                  <Input id="fim" type="date" value={draft.fim} onChange={(event) => updateDraft('fim', event.target.value)} />
+                </Field>
+              </div>
+
+              <FieldSeparator>Documento</FieldSeparator>
+
+              <div className="grid gap-3 lg:grid-cols-12">
+                <Field className="lg:col-span-5">
+                  <FieldLabel htmlFor="documentField">Campo</FieldLabel>
+                  <select
+                    id="documentField"
+                    className={CONTROL_CLASS}
+                    value={draft.documentField}
+                    onChange={(event) => updateDraft('documentField', event.target.value)}
+                  >
+                    <option value="">Nenhum</option>
+                    {DOCUMENT_FIELDS.map((field) => (
+                      <option key={field.value} value={field.value}>{field.label}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-2">
+                  <FieldLabel htmlFor="documentOperator">Operador</FieldLabel>
+                  <select
+                    id="documentOperator"
+                    className={CONTROL_CLASS}
+                    value={draft.documentOperator}
+                    onChange={(event) => updateDraft('documentOperator', event.target.value)}
+                  >
+                    {DOCUMENT_OPERATORS.map((operator) => (
+                      <option key={operator.value} value={operator.value}>{operator.label}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field className="lg:col-span-5">
+                  <FieldLabel htmlFor="documentValue">Valor</FieldLabel>
+                  <Input
+                    id="documentValue"
+                    placeholder="Ex.: INPE, manual, queimada..."
+                    value={draft.documentValue}
+                    onChange={(event) => updateDraft('documentValue', event.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <FieldDescription>
+                  Ordenacao nos cabecalhos da tabela; paginacao executada no backend.
+                </FieldDescription>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={resetFilters}>
+                    <RotateCcw data-icon="inline-start" />
+                    Limpar
+                  </Button>
+                  <Button type="submit">
+                    <Search data-icon="inline-start" />
+                    Filtrar
+                  </Button>
+                </div>
+              </div>
+            </FieldGroup>
           </form>
         </CardContent>
       </Card>
@@ -473,7 +670,14 @@ export default function EventListPage() {
 
                 {!loading &&
                   table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
+                    <TableRow
+                      key={row.id}
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer"
+                      onClick={() => openEventDocument(row.original)}
+                      onKeyDown={(event) => handleRowKeyDown(event, row.original)}
+                    >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -513,7 +717,7 @@ export default function EventListPage() {
               setPage(1)
             }}
           >
-            {[25, 50, 100, 200].map((value) => (
+            {[10, 25, 50, 100, 200].map((value) => (
               <option key={value} value={value}>{value}</option>
             ))}
           </select>
@@ -659,6 +863,22 @@ export default function EventListPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={selectedEvent != null} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Documento MongoDB</DialogTitle>
+            <DialogDescription>
+              {selectedEvent?.idEvento ?? selectedEvent?.tipo ?? 'Evento selecionado'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-auto rounded-md border bg-muted/30 p-4">
+            <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+              <code>{JSON.stringify(selectedEvent, null, 2)}</code>
+            </pre>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

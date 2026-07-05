@@ -8,6 +8,9 @@ export const getEvents = (params) =>
 export const searchEvents = (params) =>
   api.get('/events/search', { params })
 
+export const getEventFilterOptions = (params) =>
+  api.get('/events/filter-options', { params })
+
 export const createEvent = (data) =>
   api.post('/events', data)
 

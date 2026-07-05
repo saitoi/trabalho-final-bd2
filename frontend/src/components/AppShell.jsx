@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   Activity,
   BarChart3,
@@ -23,15 +23,6 @@ const NAV = [
   { to: '/benchmark', label: 'Benchmark', icon: Gauge, description: 'Resultados experimentais' },
   { to: '/nodes', label: 'Nos', icon: Server, description: 'Replica set' },
 ]
-
-const TITLES = {
-  '/': 'Monitoramento urbano',
-  '/dashboard': 'Dashboard',
-  '/events': 'Eventos',
-  '/map': 'Mapa',
-  '/benchmark': 'Benchmark',
-  '/nodes': 'Nos do cluster',
-}
 
 function DesktopNavLink({ item }) {
   const Icon = item.icon
@@ -78,9 +69,6 @@ function MobileNavLink({ item }) {
 }
 
 export default function AppShell({ children }) {
-  const location = useLocation()
-  const title = TITLES[location.pathname] ?? 'Monitoramento urbano'
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r bg-card md:flex">
@@ -112,20 +100,14 @@ export default function AppShell({ children }) {
       </aside>
 
       <div className="md:pl-64">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">{title}</h1>
-            <p className="hidden text-xs text-muted-foreground sm:block">
-              Bancos de Dados II · UFRJ
-            </p>
-          </div>
-          <div className="flex items-center gap-1 md:hidden">
+        <main className="min-h-screen overflow-x-hidden pb-16 md:pb-0">{children}</main>
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex h-14 items-center justify-center border-t bg-background/95 px-3 backdrop-blur md:hidden">
+          <div className="flex items-center gap-1">
             {NAV.map((item) => (
               <MobileNavLink key={item.to} item={item} />
             ))}
           </div>
-        </header>
-        <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden">{children}</main>
+        </nav>
       </div>
     </div>
   )

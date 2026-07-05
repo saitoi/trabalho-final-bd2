@@ -54,6 +54,14 @@ const EVENT_COLORS = [
   'hsl(24 45% 39%)',
 ]
 
+const SEVERITY_LEVELS = [
+  { level: 1, label: 'Baixa', color: 'hsl(150 34% 36%)' },
+  { level: 2, label: 'Leve', color: 'hsl(92 25% 34%)' },
+  { level: 3, label: 'Moderada', color: 'hsl(43 65% 38%)' },
+  { level: 4, label: 'Alta', color: 'hsl(24 60% 40%)' },
+  { level: 5, label: 'Critica', color: 'hsl(4 68% 40%)' },
+]
+
 const chartConfig = {
   total: { label: 'Eventos', color: 'var(--primary)' },
   gravidade: { label: 'Gravidade', color: 'var(--accent)' },
@@ -76,6 +84,16 @@ function normalizeGroup(rows) {
     name: row._id ?? 'N/D',
     total: row.total ?? 0,
     fill: EVENT_COLORS[index % EVENT_COLORS.length],
+  }))
+}
+
+function normalizeSeverity(rows) {
+  const totals = new Map((rows ?? []).map((row) => [Number(row._id), row.total ?? 0]))
+  return SEVERITY_LEVELS.map((item) => ({
+    ...item,
+    name: `Gravidade ${item.level}`,
+    total: totals.get(item.level) ?? 0,
+    fill: item.color,
   }))
 }
 
@@ -139,7 +157,7 @@ export default function DashboardPage() {
         byType: normalizeGroup(byType.data),
         byNeighborhood: normalizeGroup(byNeighborhood.data).slice(0, 12),
         temporal: normalizeGroup(temporal.data).map((row) => ({ data: row.name, total: row.total })),
-        severity: normalizeGroup(severity.data).map((row) => ({ ...row, name: `Gravidade ${row.name}` })),
+        severity: normalizeSeverity(severity.data),
         states: normalizeGroup(states.data).slice(0, 12),
         cities: normalizeGroup(cities.data).slice(0, 12),
         reporters: normalizeGroup(reporters.data).slice(0, 8),
@@ -254,17 +272,34 @@ export default function DashboardPage() {
             <CardTitle>Severidade</CardTitle>
             <CardDescription>Distribuicao dos eventos entre os niveis 1 a 5.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[360px] w-full">
+          <CardContent className="flex flex-col gap-4">
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
                 <Pie data={data.severity} dataKey="total" nameKey="name" innerRadius={70} outerRadius={120}>
-                  {data.severity.map((row, index) => (
-                    <Cell key={row.name} fill={row.fill ?? EVENT_COLORS[index % EVENT_COLORS.length]} />
+                  {data.severity.map((row) => (
+                    <Cell key={row.name} fill={row.fill} />
                   ))}
                 </Pie>
               </PieChart>
             </ChartContainer>
+            <div className="flex flex-col gap-2">
+              {data.severity.map((row) => (
+                <div key={row.level} className="flex items-center gap-2 text-xs">
+                  <span
+                    className="size-2.5 shrink-0 rounded-sm"
+                    style={{ backgroundColor: row.fill }}
+                    aria-hidden="true"
+                  />
+                  <span className="text-muted-foreground">
+                    {row.level} - {row.label}
+                  </span>
+                  <Badge variant="outline" className="ml-auto">
+                    {formatInt(row.total)}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -289,8 +324,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="territorio">
-        <TabsList>
+      <Tabs defaultValue="territorio" className="gap-3">
+        <TabsList variant="line">
           <TabsTrigger value="territorio">Territorio</TabsTrigger>
           <TabsTrigger value="metadados">Metadados</TabsTrigger>
         </TabsList>
