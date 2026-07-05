@@ -1,190 +1,175 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Server, RefreshCw, AlertTriangle, CheckCircle, WifiOff } from 'lucide-react'
-import { getNodeStatus } from '../api'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, CheckCircle2, RefreshCw, Server, Terminal, WifiOff } from 'lucide-react'
+import { getNodeStatus } from '@/api'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 
-const STATE_CONFIG = {
-  PRIMARY:   { bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  dot: 'bg-green-500',  icon: CheckCircle },
-  SECONDARY: { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',   dot: 'bg-blue-500',   icon: Server },
-  ARBITER:   { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-400', icon: Server },
-  DOWN:      { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    dot: 'bg-red-500',    icon: WifiOff },
-  UNKNOWN:   { bg: 'bg-gray-50',   border: 'border-gray-200',   text: 'text-gray-600',   dot: 'bg-gray-400',   icon: AlertTriangle },
+const STEPS = [
+  { command: null, text: 'Execute uma consulta agregada e guarde o tempo de resposta.' },
+  { command: 'docker stop bd2-mongo2', text: 'Pare um no secundario do replica set.' },
+  { command: null, text: 'Atualize esta tela e confirme que o no aparece indisponivel.' },
+  { command: null, text: 'Repita a consulta e compare tempo e consistencia.' },
+  { command: 'docker start bd2-mongo2', text: 'Restaure o no parado.' },
+  { command: null, text: 'Aguarde a sincronizacao e atualize o status novamente.' },
+]
+
+function formatUptime(seconds) {
+  if (!seconds) return '-'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return `${hours}h ${minutes}m`
 }
 
-function formatUptime(s) {
-  if (!s) return '—'
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
-  return `${h}h ${m}m`
+function memberState(member) {
+  if (member.health === 0) return 'DOWN'
+  return member.state || 'UNKNOWN'
 }
 
-function NodeCard({ member, delay }) {
-  const state  = member.state || (member.health === 0 ? 'DOWN' : 'UNKNOWN')
-  const cfg    = STATE_CONFIG[state] || STATE_CONFIG.UNKNOWN
-  const Icon   = cfg.icon
-  const isPrimary = state === 'PRIMARY'
+function statusVariant(state) {
+  if (state === 'PRIMARY') return 'default'
+  if (state === 'SECONDARY') return 'secondary'
+  if (state === 'DOWN') return 'destructive'
+  return 'outline'
+}
+
+function NodeCard({ member }) {
+  const state = memberState(member)
+  const Icon = state === 'DOWN' ? WifiOff : state === 'PRIMARY' ? CheckCircle2 : Server
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4, ease: 'easeOut' }}
-      whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(0,0,0,0.08)' }}
-      className={`rounded-2xl border p-6 ${cfg.bg} ${cfg.border} transition-shadow relative overflow-hidden`}
-    >
-      {isPrimary && (
-        <motion.div
-          className="absolute inset-0 rounded-2xl"
-          animate={{ boxShadow: ['0 0 0 0 rgba(34,197,94,0.3)', '0 0 0 8px rgba(34,197,94,0)', '0 0 0 0 rgba(34,197,94,0.3)'] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
-      )}
-
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <span className={`w-3 h-3 rounded-full block ${cfg.dot}`} />
-            {(state === 'PRIMARY' || state === 'SECONDARY') && (
-              <span className={`absolute inset-0 rounded-full ${cfg.dot} animate-ping opacity-50`} />
-            )}
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3">
+        <div className="min-w-0">
+          <CardDescription className="truncate font-mono">{member.name}</CardDescription>
+          <CardTitle className="mt-1 flex items-center gap-2">
+            <Icon />
+            {state}
+          </CardTitle>
+        </div>
+        <Badge variant={statusVariant(state)}>{member.health ? 'online' : 'offline'}</Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex flex-col gap-1 rounded-md border p-3">
+            <span className="text-muted-foreground">Uptime</span>
+            <span className="font-medium">{formatUptime(member.uptime)}</span>
           </div>
-          <span className={`font-mono text-xs font-semibold ${cfg.text} opacity-70`}>{member.name}</span>
+          <div className="flex flex-col gap-1 rounded-md border p-3">
+            <span className="text-muted-foreground">Health</span>
+            <span className="font-medium">{member.health ?? '-'}</span>
+          </div>
         </div>
-        <div className={`p-2 rounded-xl bg-white/60 ${cfg.text}`}>
-          <Icon size={16} />
-        </div>
-      </div>
-
-      <p className={`text-2xl font-bold ${cfg.text} mb-1`}>{state}</p>
-      <p className={`text-xs ${cfg.text} opacity-60`}>Uptime: {formatUptime(member.uptime)}</p>
-
-      {state === 'PRIMARY' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-3 inline-flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          Escritas ativas
-        </motion.div>
-      )}
-    </motion.div>
+      </CardContent>
+    </Card>
   )
 }
 
-const STEPS = [
-  { cmd: null,            desc: 'Execute uma consulta no Dashboard e anote o tempo de resposta (estado base)' },
-  { cmd: 'docker stop bd2-mongo2',  desc: 'Derrube o nó secundário' },
-  { cmd: null,            desc: 'Clique "Atualizar" — mongo2 deve aparecer como DOWN' },
-  { cmd: null,            desc: 'Execute as mesmas consultas e verifique que o sistema continua respondendo' },
-  { cmd: 'docker start bd2-mongo2', desc: 'Restaure o nó' },
-  { cmd: null,            desc: 'Aguarde ~30s, atualize — mongo2 volta como SECONDARY' },
-]
-
 export default function NodeStatusPage() {
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [step, setStep]       = useState(null)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const fetchStatus = () => {
+  const load = async () => {
     setLoading(true)
-    getNodeStatus()
-      .then(r => setData(r.data))
-      .catch(() => setData({ ok: false, error: 'Sem conexão com a API', members: [] }))
-      .finally(() => setLoading(false))
+    try {
+      const response = await getNodeStatus()
+      setData(response.data)
+    } catch (err) {
+      setData({ ok: false, error: 'Sem conexao com a API', members: [] })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { fetchStatus() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
-  const placeholders = [
-    { name: 'mongo1:27017', state: 'DOWN', health: 0, uptime: 0 },
-    { name: 'mongo2:27017', state: 'DOWN', health: 0, uptime: 0 },
-    { name: 'mongo3:27017', state: 'DOWN', health: 0, uptime: 0 },
-  ]
-  const members = data?.members?.length > 0 ? data.members : placeholders
+  const members = useMemo(() => {
+    if (data?.members?.length) return data.members
+    return [
+      { name: 'mongo1:27017', state: 'DOWN', health: 0, uptime: 0 },
+      { name: 'mongo2:27017', state: 'DOWN', health: 0, uptime: 0 },
+      { name: 'mongo3:27017', state: 'DOWN', health: 0, uptime: 0 },
+    ]
+  }, [data])
+
+  const primary = members.find((member) => memberState(member) === 'PRIMARY')
 
   return (
-    <div className="p-4 lg:p-6 max-w-screen-lg mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-6"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Server className="text-blue-500" size={24} />
-            Status do Cluster MongoDB
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Replica Set rs0 — 3 nós</p>
+    <div className="flex flex-col gap-5 p-4 md:p-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-semibold">Replica set rs0</h2>
+            {primary && <Badge variant="secondary">PRIMARY {primary.name}</Badge>}
+          </div>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            Status reportado pelo comando `rs.status()` via backend FastAPI.
+          </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          onClick={fetchStatus}
-          className="flex items-center gap-2 text-sm border border-gray-200 rounded-xl px-4 py-2 hover:bg-gray-50 transition-colors"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        <Button onClick={load} variant="outline" disabled={loading}>
+          <RefreshCw data-icon="inline-start" className={loading ? 'animate-spin' : undefined} />
           Atualizar
-        </motion.button>
-      </motion.div>
-
-      {/* Node cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {members.map((m, i) => <NodeCard key={m.name} member={m} delay={i * 0.1} />)}
+        </Button>
       </div>
 
-      <AnimatePresence>
-        {data && !data.ok && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 flex items-center gap-3 text-sm text-red-700"
-          >
-            <AlertTriangle size={16} className="shrink-0" />
-            <span><strong>Erro:</strong> {data.error}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {data && !data.ok && (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>Cluster indisponivel</AlertTitle>
+          <AlertDescription>{data.error}</AlertDescription>
+        </Alert>
+      )}
 
-      {/* Fault tolerance guide */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
-      >
-        <h3 className="text-sm font-bold text-gray-700 mb-5 flex items-center gap-2">
-          <AlertTriangle size={16} className="text-amber-500" />
-          Procedimento — Teste de Tolerância a Falhas
-        </h3>
-        <div className="space-y-3">
-          {STEPS.map((s, i) => (
-            <motion.div
-              key={i}
-              whileHover={{ x: 4 }}
-              onClick={() => setStep(step === i ? null : i)}
-              className={`flex gap-3 p-3 rounded-xl cursor-pointer transition-colors ${step === i ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-            >
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-colors ${
-                step === i ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {i + 1}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {loading
+          ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-44" />)
+          : members.map((member) => <NodeCard key={member.name} member={member} />)}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Terminal />
+            Teste de tolerancia a falhas
+          </CardTitle>
+          <CardDescription>
+            Sequencia usada para demonstrar continuidade da leitura com um no parado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            {STEPS.map((step, index) => (
+              <div key={index} className="grid gap-3 rounded-md border p-3 md:grid-cols-[44px_minmax(0,1fr)]">
+                <div className="flex size-8 items-center justify-center rounded-md bg-secondary text-sm font-medium text-secondary-foreground">
+                  {index + 1}
+                </div>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <p className="text-sm">{step.text}</p>
+                  {step.command && (
+                    <>
+                      <Separator />
+                      <code className="overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-xs">
+                        {step.command}
+                      </code>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-700">{s.desc}</p>
-                {s.cmd && (
-                  <AnimatePresence>
-                    {step === i && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        className="mt-2"
-                      >
-                        <code className="bg-gray-900 text-green-400 text-xs px-3 py-1.5 rounded-lg block font-mono">
-                          $ {s.cmd}
-                        </code>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

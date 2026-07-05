@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv
 .env
+.pytest_cache/
+.uv-cache/
 
 # Raw datasets: keep only the directory placeholder in git.
 data/raw/**
@@ -26,6 +28,7 @@ data/samples/**
 
 # Node.js dependencies — always install locally, never commit.
 node_modules/
+frontend/.npm-cache/
 
 # Documentation: keep folder structure, ignore contents.
 docs/**

@@ -99,23 +99,17 @@ A API conecta o frontend ao MongoDB e expõe os dados normalizados via HTTP.
 ### Instalação
 
 ```bash
-cd app
-pip install -r requirements.txt
-```
-
-Ou, a partir da raiz com o ambiente virtual já ativo:
-
-```bash
-pip install -r app/requirements.txt
+uv sync
 ```
 
 ### Iniciar a API
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uv run fastapi dev --port 8000
 ```
 
 A API sobe em `http://localhost:8000`. Documentação interativa disponível em `/docs`.
+O entrypoint está declarado em `pyproject.toml` (`app.main:app`).
 
 ### Rotas disponíveis
 
@@ -140,10 +134,9 @@ Dashboard interativo para visualização e análise dos eventos urbanos.
 ### Stack
 
 - **React 18** + **Vite** — build e dev server
-- **Tailwind CSS** — estilização utilitária
-- **React-Leaflet** — mapa interativo com marcadores geoespaciais
-- **Recharts** — gráficos (BarChart, LineChart com zoom via Brush)
-- **framer-motion** — animações de página, componentes e transições
+- **Tailwind CSS v4** + **shadcn/ui** — sistema de design e componentes
+- **react-map-gl** + **MapLibre** — mapa interativo com marcadores geoespaciais
+- **Recharts 3** — gráficos do dashboard e benchmarks
 - **lucide-react** — ícones
 
 ### Instalação do frontend
@@ -159,7 +152,7 @@ npm install
 npm run dev
 ```
 
-O frontend sobe em `http://localhost:5173`. As chamadas `/api/*` são automaticamente proxiadas para `http://localhost:8000` via configuração do Vite — a API precisa estar rodando.
+O frontend sobe em `http://localhost:3000`. As chamadas `/api/*` são automaticamente proxiadas para `http://localhost:8000` via configuração do Vite — a API precisa estar rodando.
 
 ### Páginas
 
@@ -167,15 +160,15 @@ O frontend sobe em `http://localhost:5173`. As chamadas `/api/*` são automatica
 | ---- | ------ | --------- |
 | `/` | Início | Apresentação do projeto e integrantes |
 | `/map` | Mapa | Mapa interativo com filtro por tipo e busca por raio |
-| `/dashboard` | Dashboard | Gráficos por tipo, bairro e evolução temporal |
-| `/events` | Consulta por período | Tabela paginada com filtro de datas |
-| `/new-event` | Novo Evento | Formulário para cadastro manual |
+| `/dashboard` | Dashboard | Métricas agregadas, severidade, território e evolução temporal |
+| `/events` | Eventos | Tabela paginada completa, filtros opcionais e cadastro por modal |
+| `/benchmark` | Benchmark | Resultados reais dos experimentos salvos pela pipeline |
 | `/nodes` | Status dos Nós | Estado do Replica Set em tempo real |
 
 ### Layout responsivo
 
-- **Desktop (`lg+`):** sidebar lateral colapsável (ícones + rótulos)
-- **Mobile:** barra de navegação fixa na base da tela
+- **Desktop:** navegação lateral fixa
+- **Mobile:** navegação compacta no topo
 
 ---
 
@@ -196,7 +189,7 @@ O frontend sobe em `http://localhost:5173`. As chamadas `/api/*` são automatica
 │   ├── public/
 │   └── src/
 │       ├── api/            # Chamadas HTTP (axios)
-│       ├── components/     # Sidebar, BottomNav
+│       ├── components/     # AppShell e componentes shadcn/ui
 │       └── pages/          # Uma página por rota
 ├── scripts/                # Pipeline de dados (extração, normalização, carga, experimentos)
 ├── CLAUDE.md               # Instruções para Claude Code
@@ -217,4 +210,4 @@ O frontend sobe em `http://localhost:5173`. As chamadas `/api/*` são automatica
 | CEMADEN | Dados hidrológicos — download manual (CAPTCHA) |
 | Portal Rio 1746 | Solicitações de serviço do município do Rio — download manual |
 
-Dados sintéticos só são gerados se os registros reais não atingirem a carga alvo, e sempre ficam marcados com `origem.fonte = "synthetic_rio"`.
+Os recortes de benchmark priorizam dados reais já coletados e normalizados.

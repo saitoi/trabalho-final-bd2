@@ -9,4 +9,20 @@ dependencies = [
     "pymongo>=4.10.1",
     "requests>=2.32.4",
     "tqdm>=4.68.3",
+    "fastapi[standard]>=0.139.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
 ]

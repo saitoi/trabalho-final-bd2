@@ -1,11 +1,18 @@
-from fastapi import APIRouter
-from app.database import client
+from typing import Annotated
 
-router = APIRouter()
+from fastapi import APIRouter
+from fastapi import Depends
+from pymongo import MongoClient
+
+from app.database import get_mongo_client
+from app.models import NodeStatus
+
+router = APIRouter(prefix="/nodes", tags=["nodes"])
+MongoClientDep = Annotated[MongoClient, Depends(get_mongo_client)]
 
 
 @router.get("/status")
-def node_status():
+def node_status(client: MongoClientDep) -> NodeStatus:
     try:
         rs = client.admin.command("replSetGetStatus")
         members = [
