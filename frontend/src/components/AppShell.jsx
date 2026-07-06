@@ -16,12 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 
 const NAV = [
-  { to: '/', label: 'Inicio', icon: Home, description: 'Visao geral' },
-  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Metricas agregadas' },
+  { to: '/', label: 'Início', icon: Home, description: 'Visão geral' },
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Métricas agregadas' },
   { to: '/events', label: 'Eventos', icon: Table2, description: 'Tabela e filtros' },
   { to: '/map', label: 'Mapa', icon: Map, description: 'Eventos georreferenciados' },
   { to: '/benchmark', label: 'Benchmark', icon: Gauge, description: 'Resultados experimentais' },
-  { to: '/nodes', label: 'Nos', icon: Server, description: 'Replica set' },
+  { to: '/nodes', label: 'Nós', icon: Server, description: 'Réplica set' },
 ]
 
 function DesktopNavLink({ item }) {
