@@ -23,7 +23,11 @@ CANONICAL_TYPES = [
     "Outro",
 ]
 
-DEFAULT_MONGO_URI = "mongodb://host.docker.internal:27017,host.docker.internal:27018,host.docker.internal:27019/bd2?replicaSet=rs0"
+# AJUSTE LOCAL — Docker Desktop no Windows resolve host.docker.internal para o IP da
+# rede WiFi, não para 127.0.0.1. directConnection=true conecta direto ao PRIMARY sem
+# descoberta de topologia. Original (Linux/produção) está comentado abaixo.
+# DEFAULT_MONGO_URI = "mongodb://host.docker.internal:27017,host.docker.internal:27018,host.docker.internal:27019/bd2?replicaSet=rs0"
+DEFAULT_MONGO_URI = "mongodb://localhost:27017/bd2?directConnection=true"
 
 STATE_ABBR = {
     "ACRE": "AC",
