@@ -89,7 +89,7 @@ export default function AppShell({ children }) {
         </nav>
         <Separator />
         <div className="flex flex-col gap-3 p-4">
-          <Badge variant="outline" className="w-fit">
+          <Badge variant="outline" className="w-fit gap-1.5">
             <Activity data-icon="inline-start" />
             rs0 ativo
           </Badge>
