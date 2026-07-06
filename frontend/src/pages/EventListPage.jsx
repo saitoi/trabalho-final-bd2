@@ -178,7 +178,7 @@ export default function EventListPage() {
     } catch (err) {
       setEvents([])
       setTotal(0)
-      toast.error('Nao foi possivel carregar os eventos')
+      toast.error('Não foi possível carregar os eventos')
     } finally {
       setLoading(false)
     }
@@ -201,7 +201,7 @@ export default function EventListPage() {
       } catch (err) {
         if (active) {
           setFilterOptions(EMPTY_LOCATION_OPTIONS)
-          toast.error('Nao foi possivel carregar as opcoes de localizacao')
+          toast.error('Não foi possível carregar as opções de localização')
         }
       } finally {
         if (active) {
@@ -358,7 +358,7 @@ export default function EventListPage() {
       setForm(blankForm())
       load()
     } catch (err) {
-      toast.error('Nao foi possivel cadastrar o evento')
+      toast.error('Não foi possível cadastrar o evento')
     } finally {
       setSaving(false)
     }
@@ -455,7 +455,7 @@ export default function EventListPage() {
                 </Field>
               </div>
 
-              <FieldSeparator>Localizacao e periodo</FieldSeparator>
+              <FieldSeparator>Localização e período</FieldSeparator>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
                 <Field className="lg:col-span-6">
@@ -526,7 +526,7 @@ export default function EventListPage() {
 
               <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <FieldDescription>
-                  Ordenacao nos cabecalhos da tabela; paginacao executada no backend.
+                  Ordenação nos cabeçalhos da tabela; paginação executada no backend.
                 </FieldDescription>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={resetFilters}>
@@ -702,7 +702,7 @@ export default function EventListPage() {
               </div>
 
               <Field>
-                <FieldLabel htmlFor="form-descricao">Descricao</FieldLabel>
+                <FieldLabel htmlFor="form-descricao">Descrição</FieldLabel>
                 <Textarea
                   id="form-descricao"
                   value={form.descricao}

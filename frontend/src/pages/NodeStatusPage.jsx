@@ -16,11 +16,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 const STEPS = [
   { command: null, text: 'Execute uma consulta agregada e guarde o tempo de resposta.' },
-  { command: 'docker stop bd2-mongo2', text: 'Pare um no secundario do replica set.' },
-  { command: null, text: 'Atualize esta tela e confirme que o no aparece indisponivel.' },
-  { command: null, text: 'Repita a consulta e compare tempo e consistencia.' },
-  { command: 'docker start bd2-mongo2', text: 'Restaure o no parado.' },
-  { command: null, text: 'Aguarde a sincronizacao e atualize o status novamente.' },
+  { command: 'docker stop bd2-mongo2', text: 'Pare um nó secundário do replica set.' },
+  { command: null, text: 'Atualize esta tela e confirme que o nó aparece indisponível.' },
+  { command: null, text: 'Repita a consulta e compare tempo e consistência.' },
+  { command: 'docker start bd2-mongo2', text: 'Restaure o nó parado.' },
+  { command: null, text: 'Aguarde a sincronização e atualize o status novamente.' },
 ]
 
 function formatUptime(seconds) {
@@ -84,7 +84,7 @@ export default function NodeStatusPage() {
       const response = await getNodeStatus()
       setData(response.data)
     } catch (err) {
-      setData({ ok: false, error: 'Sem conexao com a API', members: [] })
+      setData({ ok: false, error: 'Sem conexão com a API', members: [] })
     } finally {
       setLoading(false)
     }
@@ -126,7 +126,7 @@ export default function NodeStatusPage() {
       {data && !data.ok && (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>Cluster indisponivel</AlertTitle>
+          <AlertTitle>Cluster indisponível</AlertTitle>
           <AlertDescription>{data.error}</AlertDescription>
         </Alert>
       )}
@@ -141,10 +141,10 @@ export default function NodeStatusPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Terminal />
-            Teste de tolerancia a falhas
+            Teste de tolerância a falhas
           </CardTitle>
           <CardDescription>
-            Sequencia usada para demonstrar continuidade da leitura com um no parado.
+            Sequência usada para demonstrar continuidade da leitura com um nó parado.
           </CardDescription>
         </CardHeader>
         <CardContent>

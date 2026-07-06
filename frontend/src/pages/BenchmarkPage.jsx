@@ -33,9 +33,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const TEST_LABELS = {
-  insert: 'Insercao',
-  tipo_incendio: 'Tipo: incendio',
-  periodo_2025: 'Periodo 2025',
+  insert: 'Inserção',
+  tipo_incendio: 'Tipo: incêndio',
+  periodo_2025: 'Período 2025',
   raio_centro_rj: 'Raio Centro RJ',
   failure_before: 'Antes da falha',
   failure_after: 'Depois da falha',
@@ -224,19 +224,19 @@ export default function BenchmarkPage() {
         <MetricCard
           title="Consultas medidas"
           value={formatInt(queries.length)}
-          description={benchmarkOnly ? 'Ainda nao executadas.' : 'Tipo, periodo e raio nos tres volumes.'}
+          description={benchmarkOnly ? 'Ainda não executadas.' : 'Tipo, período e raio nos três volumes.'}
           icon={Activity}
         />
         <MetricCard
-          title="Falha de no"
+          title="Falha de nó"
           value={failure?.consistent ? 'Consistente' : 'Pendente'}
           description={`Depois da falha: ${formatSeconds(failure?.after_seconds)}.`}
           icon={ShieldCheck}
         />
         <MetricCard
-          title="Recuperacao"
+          title="Recuperação"
           value={formatSeconds(failure?.recovery_seconds)}
-          description="Tempo observado para restaurar o no parado."
+          description="Tempo observado para restaurar o nó parado."
           icon={Clock}
         />
       </div>
@@ -244,7 +244,7 @@ export default function BenchmarkPage() {
       {failure && !failure.skipped && (
         <Alert>
           <CheckCircle2 />
-          <AlertTitle>Resultado consistente apos falha</AlertTitle>
+          <AlertTitle>Resultado consistente após falha</AlertTitle>
           <AlertDescription>
             A consulta agregada retornou o mesmo total antes e depois da parada de um no: {formatSeconds(failure.before_seconds)} antes e {formatSeconds(failure.after_seconds)} depois.
           </AlertDescription>
@@ -256,7 +256,7 @@ export default function BenchmarkPage() {
           <Database />
           <AlertTitle>Datasets prontos, experimentos pendentes</AlertTitle>
           <AlertDescription>
-            A pipeline gerou os arquivos de benchmark, mas `data/processed/experiments/results.json` ainda nao existe. Rode `RUN_EXPERIMENTS=1 ./pipeline.sh` ou `uv run --script scripts/run_experiments.py` para preencher os tempos.
+            A pipeline gerou os arquivos de benchmark, mas `data/processed/experiments/results.json` ainda não existe. Rode `RUN_EXPERIMENTS=1 ./pipeline.sh` ou `uv run --script scripts/run_experiments.py` para preencher os tempos.
           </AlertDescription>
         </Alert>
       )}
@@ -265,7 +265,7 @@ export default function BenchmarkPage() {
         <Card>
           <CardHeader>
             <CardTitle>Recortes gerados</CardTitle>
-            <CardDescription>Volumes disponiveis em `data/processed/benchmarks`.</CardDescription>
+            <CardDescription>Volumes disponíveis em `data/processed/benchmarks`.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[360px] w-full">
@@ -284,7 +284,7 @@ export default function BenchmarkPage() {
           <Card>
             <CardHeader>
               <CardTitle>Tempo de consulta</CardTitle>
-              <CardDescription>Comparacao por teste e volume carregado.</CardDescription>
+              <CardDescription>Comparação por teste e volume carregado.</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[360px] w-full">
@@ -305,7 +305,7 @@ export default function BenchmarkPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Insercao por volume</CardTitle>
+              <CardTitle>Inserção por volume</CardTitle>
               <CardDescription>Tempo total de carga batch.</CardDescription>
             </CardHeader>
             <CardContent>
