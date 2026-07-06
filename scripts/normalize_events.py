@@ -11,16 +11,16 @@ import json
 import logging
 import random
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from bd2_common import (
     CANONICAL_TYPES,
-    append_jsonl,
     ensure_parent,
     iter_jsonl,
+    normalize_text,
     parse_datetime_to_utc,
     parse_float,
     state_abbr,
@@ -28,6 +28,8 @@ from bd2_common import (
     valid_lat_lon,
     write_json,
 )
+
+TARGET_CITY = "Rio de Janeiro"
 
 
 RJ_NEIGHBORHOODS = [
@@ -66,6 +68,7 @@ class Writer:
         self.next_id = 1
         self.counts = Counter()
         self.rejected_counts = Counter()
+        self.bairro_locations: dict[str, list[tuple[float, float]]] = defaultdict(list)
 
     def close(self) -> None:
         self.out_f.close()
@@ -86,6 +89,10 @@ class Writer:
         event["idEvento"] = f"EVT{self.next_id:06d}"
         self.next_id += 1
         self.counts[event["tipo"]] += 1
+        bairro = event.get("bairro")
+        if bairro:
+            lon, lat = event["localizacao"]["coordinates"]
+            self.bairro_locations[bairro].append((lat, lon))
         self.out_f.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
@@ -160,6 +167,9 @@ def normalize_fogo(raw_dir: Path, writer: Writer, max_records: int) -> None:
             city = (record.get("city") or {}).get("name")
             state = (record.get("state") or {}).get("name")
             bairro = (record.get("neighborhood") or {}).get("name")
+            if normalize_text(city) != normalize_text(TARGET_CITY):
+                writer.reject("fogo_cruzado", path, line_no, "fora_do_escopo_geografico", record.get("id"))
+                continue
             lat, lon = coords
             writer.write(
                 canonical_event(
@@ -169,7 +179,7 @@ def normalize_fogo(raw_dir: Path, writer: Writer, max_records: int) -> None:
                     gravidade=severity,
                     status="Aberto",
                     bairro=bairro.title() if isinstance(bairro, str) else None,
-                    cidade=city,
+                    cidade=TARGET_CITY,
                     estado=state_abbr(state),
                     pais="Brasil",
                     lat=lat,
@@ -206,6 +216,9 @@ def normalize_inpe(raw_dir: Path, writer: Writer, max_records: int) -> None:
                 if not data_hora:
                     writer.reject("inpe_bdqueimadas", path, line_no, "data_invalida", row.get("id"))
                     continue
+                if normalize_text(row.get("municipio")) != normalize_text(TARGET_CITY):
+                    writer.reject("inpe_bdqueimadas", path, line_no, "fora_do_escopo_geografico", row.get("id"))
+                    continue
                 frp = parse_float(row.get("frp"))
                 risco = parse_float(row.get("risco_fogo"))
                 if frp is not None and frp >= 100:
@@ -225,7 +238,7 @@ def normalize_inpe(raw_dir: Path, writer: Writer, max_records: int) -> None:
                         gravidade=severity,
                         status="Aberto",
                         bairro=None,
-                        cidade=(row.get("municipio") or "").title() or None,
+                        cidade=TARGET_CITY,
                         estado=state_abbr(row.get("estado")),
                         pais=row.get("pais") or "Brasil",
                         lat=lat,
@@ -250,8 +263,10 @@ def normalize_inmet(raw_dir: Path, writer: Writer, max_records: int) -> None:
         if written >= max_records:
             break
         with zipfile.ZipFile(zip_path) as zf:
-            names = sorted(n for n in zf.namelist() if n.lower().endswith(".csv"))
-            names.sort(key=lambda n: (0 if "_RJ_" in n or "RIO DE JANEIRO" in n.upper() else 1, n))
+            names = sorted(
+                n for n in zf.namelist()
+                if n.lower().endswith(".csv") and "RIO DE JANEIRO" in n.upper()
+            )
             for name in names:
                 if written >= max_records:
                     break
@@ -302,7 +317,7 @@ def normalize_inmet(raw_dir: Path, writer: Writer, max_records: int) -> None:
                             gravidade=severity,
                             status="Aberto",
                             bairro=metadata.get("ESTACAO"),
-                            cidade=(metadata.get("ESTACAO") or "").title() or None,
+                            cidade=TARGET_CITY,
                             estado=metadata.get("UF"),
                             pais="Brasil",
                             lat=lat,
@@ -320,111 +335,65 @@ def normalize_inmet(raw_dir: Path, writer: Writer, max_records: int) -> None:
                     written += 1
 
 
-def map_nyc_type(complaint: str | None, descriptor: str | None) -> str:
-    text = f"{complaint or ''} {descriptor or ''}".lower()
-    if any(k in text for k in ["flood", "catch basin", "sewer", "root/sewer"]):
-        return "Alagamento"
-    if any(k in text for k in ["water leak", "leak", "hydrant", "water system", "water conservation", "drinking water", "water quality"]):
-        return "Vazamento de água"
-    if any(
-        k in text
-        for k in [
-            "illegal parking",
-            "blocked driveway",
-            "street condition",
-            "traffic",
-            "highway",
-            "street light",
-            "street sign",
-            "broken parking meter",
-            "bus stop shelter",
-        ]
-    ):
-        return "Interdição de via"
-    if any(k in text for k in ["bus", "subway", "taxi", "ferry", "transport"]):
-        return "Transporte"
-    if any(k in text for k in ["electric", "power", "heat/hot water"]):
-        return "Energia"
-    if any(
-        k in text
-        for k in [
-            "damaged tree",
-            "dead/dying tree",
-            "overgrown tree",
-            "uprooted stump",
-            "illegal tree damage",
-            "sidewalk condition",
-            "curb condition",
-            "lot condition",
-            "retaining wall",
-            "flooring/stairs",
-            "hazardous materials",
-        ]
-    ):
-        return "Risco geotécnico"
-    return "Problema urbano"
-
-
-def normalize_nyc311(raw_dir: Path, writer: Writer, max_records: int) -> None:
-    files = sorted((raw_dir / "nyc311").glob("*.jsonl"))
-    written = 0
-    for path in files:
-        if written >= max_records:
-            break
-        for line_no, record in iter_jsonl(path):
-            if written >= max_records:
-                break
-            coords = valid_lat_lon(record.get("latitude"), record.get("longitude"))
-            if not coords:
-                writer.reject("nyc311", path, line_no, "coordenada_invalida", record.get("unique_key"))
-                continue
-            data_hora = parse_datetime_to_utc(record.get("created_date"))
-            if not data_hora:
-                writer.reject("nyc311", path, line_no, "data_invalida", record.get("unique_key"))
-                continue
-            tipo = map_nyc_type(record.get("complaint_type"), record.get("descriptor"))
-            status = "Fechado" if str(record.get("status", "")).lower() == "closed" else "Aberto"
-            lat, lon = coords
-            writer.write(
-                canonical_event(
-                    tipo=tipo,
-                    descricao=record.get("descriptor") or record.get("complaint_type"),
-                    data_hora=data_hora,
-                    gravidade=2 if status == "Fechado" else 3,
-                    status=status,
-                    bairro=record.get("borough"),
-                    cidade=record.get("city") or "New York",
-                    estado="NY",
-                    pais="Estados Unidos",
-                    lat=lat,
-                    lon=lon,
-                    reportante_tipo="Fonte pública",
-                    reportante_id=record.get("agency") or "NYC311",
-                    fonte="nyc311",
-                    id_original=record.get("unique_key"),
-                    arquivo_raw=path,
-                    linha_original=line_no,
-                    categoria_original=record.get("complaint_type"),
-                    extra={"fallbackInternacional": True},
-                )
-            )
-            written += 1
-
-
 def synthetic_id(tipo: str, index: int) -> str:
     digest = hashlib.sha1(f"{tipo}:{index}".encode("utf-8")).hexdigest()[:16]
     return f"SYN-{digest}"
+
+
+def organic_type_allocation(types: list[str], needed: int, floor: int, rng: random.Random, alpha: float = 0.6) -> dict[str, int]:
+    """Split `needed` events across `types` using Dirichlet-like shares (via gamma variates).
+
+    A low `alpha` produces a lumpy, disproportionate split — some types dominate,
+    others stay thin — instead of the near-uniform split a plain round-robin gives.
+    `floor` guarantees every type gets at least a token amount so none reads as zero.
+    """
+    raw_weights = [rng.gammavariate(alpha, 1.0) for _ in types]
+    total_weight = sum(raw_weights)
+    shares = [w / total_weight for w in raw_weights]
+
+    allocation = {tipo: int(share * needed) for tipo, share in zip(types, shares)}
+    for tipo in types:
+        allocation[tipo] = max(allocation[tipo], min(floor, needed))
+
+    shortfall = needed - sum(allocation.values())
+    if shortfall != 0:
+        biggest = max(types, key=lambda t: shares[types.index(t)])
+        allocation[biggest] = max(0, allocation[biggest] + shortfall)
+    return allocation
+
+
+def build_neighborhood_pool(writer: Writer) -> list[tuple[str, float, float]]:
+    """Use bairro/coordinate pairs seen in real data as the synthetic location pool.
+
+    Falls back to the small hardcoded RJ_NEIGHBORHOODS list only when no real
+    geolocated bairro was observed (e.g. all real sources came up empty), so
+    synthetic events spread across the same ~150+ bairros real data actually
+    touched instead of clustering on a handful of fixed points.
+    """
+    pool = [
+        (bairro, lat, lon)
+        for bairro, points in writer.bairro_locations.items()
+        for lat, lon in points
+    ]
+    return pool or RJ_NEIGHBORHOODS
 
 
 def generate_synthetic(writer: Writer, target_total: int, min_per_type: int, seed: int) -> None:
     rng = random.Random(seed)
     start = datetime(2024, 1, 1, tzinfo=timezone.utc)
     synthetic_types = [t for t in CANONICAL_TYPES if t not in {"Tiroteio", "Incêndio"}]
-    index = 0
-    while sum(writer.counts.values()) < target_total:
-        underrepresented = [t for t in CANONICAL_TYPES if writer.counts[t] < min_per_type]
-        tipo = underrepresented[index % len(underrepresented)] if underrepresented else rng.choice(synthetic_types)
-        bairro, base_lat, base_lon = rng.choice(RJ_NEIGHBORHOODS)
+
+    needed = max(0, target_total - sum(writer.counts.values()))
+    if needed == 0 or not synthetic_types:
+        return
+
+    neighborhood_pool = build_neighborhood_pool(writer)
+    allocation = organic_type_allocation(synthetic_types, needed, min_per_type, rng)
+    plan = [tipo for tipo in synthetic_types for _ in range(allocation[tipo])]
+    rng.shuffle(plan)
+
+    for index, tipo in enumerate(plan):
+        bairro, base_lat, base_lon = rng.choice(neighborhood_pool)
         lat = base_lat + rng.uniform(-0.012, 0.012)
         lon = base_lon + rng.uniform(-0.012, 0.012)
         dt = start + timedelta(hours=index * 3)
@@ -449,10 +418,9 @@ def generate_synthetic(writer: Writer, target_total: int, min_per_type: int, see
                 arquivo_raw=Path("synthetic://rio_de_janeiro"),
                 linha_original=None,
                 categoria_original=tipo,
-                extra={"geradoPara": "balanceamento_academico", "seed": seed},
+                extra={"geradoPara": "distribuicao_organica", "seed": seed},
             )
         )
-        index += 1
 
 
 def main() -> None:
@@ -462,12 +430,11 @@ def main() -> None:
     parser.add_argument("--rejected", default="data/processed/events_rejected.jsonl")
     parser.add_argument("--summary", default="data/processed/normalization_summary.json")
     parser.add_argument("--target-total", type=int, default=100000)
-    parser.add_argument("--min-per-type", type=int, default=5000)
+    parser.add_argument("--min-per-type", type=int, default=500)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-fogo", type=int, default=70000)
     parser.add_argument("--max-inpe", type=int, default=45000)
     parser.add_argument("--max-inmet", type=int, default=20000)
-    parser.add_argument("--max-nyc311", type=int, default=20000)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -478,7 +445,6 @@ def main() -> None:
         normalize_fogo(raw_dir, writer, args.max_fogo)
         normalize_inpe(raw_dir, writer, args.max_inpe)
         normalize_inmet(raw_dir, writer, args.max_inmet)
-        normalize_nyc311(raw_dir, writer, args.max_nyc311)
         real_total = sum(writer.counts.values())
         if real_total < args.target_total:
             logging.info(
@@ -506,7 +472,7 @@ def main() -> None:
             "target_total": args.target_total,
             "min_per_type": args.min_per_type,
             "seed": args.seed,
-            "rule": "gerar somente se os dados reais ficarem abaixo da carga alvo",
+            "rule": "gerar somente se os dados reais ficarem abaixo da carga alvo; volume sintético distribuído por tipo de forma organica/desproporcional (Dirichlet via gammavariate), com piso mínimo apenas para evitar categorias zeradas; Tiroteio e Incêndio não recebem reforço sintético",
         },
     }
     write_json(Path(args.summary), summary)

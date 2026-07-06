@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -156,6 +157,14 @@ def parse_datetime_to_utc(value: Any) -> str | None:
         except ValueError:
             continue
     return None
+
+
+def normalize_text(value: Any) -> str:
+    if value is None:
+        return ""
+    text = unicodedata.normalize("NFKD", str(value))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.strip().lower()
 
 
 def state_abbr(value: Any) -> str | None:

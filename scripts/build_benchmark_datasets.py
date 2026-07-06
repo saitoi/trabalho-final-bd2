@@ -33,26 +33,51 @@ def load_events(path: Path) -> list[dict[str, Any]]:
 
 
 def balanced_sample(events: list[dict[str, Any]], size: int, seed: int) -> list[dict[str, Any]]:
+    """Sample `size` events preserving each type's share of the full corpus.
+
+    A flat per-type quota would flatten a deliberately organic/disproportionate type
+    distribution back to near-uniform on small tiers, so quotas are proportional to
+    each type's actual weight in `events`, not split evenly across CANONICAL_TYPES.
+    """
     rng = random.Random(seed + size)
     by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for event in events:
         by_type[event.get("tipo", "Outro")].append(event)
     for bucket in by_type.values():
-        bucket.sort(key=lambda e: (priority(e), e.get("origem", {}).get("fonte", ""), e.get("idEvento", "")))
+        rng.shuffle(bucket)
+
+    total = len(events)
+    quotas: dict[str, int] = {}
+    for tipo in CANONICAL_TYPES:
+        bucket_len = len(by_type.get(tipo, []))
+        share = bucket_len / total if total else 0
+        quotas[tipo] = min(bucket_len, round(share * size))
+
+    types_by_bucket_size = sorted(CANONICAL_TYPES, key=lambda t: len(by_type.get(t, [])), reverse=True)
+    diff = size - sum(quotas.values())
+    guard = 0
+    while diff != 0 and types_by_bucket_size and guard < 10 * size:
+        tipo = types_by_bucket_size[guard % len(types_by_bucket_size)]
+        bucket_len = len(by_type.get(tipo, []))
+        if diff > 0 and quotas[tipo] < bucket_len:
+            quotas[tipo] += 1
+            diff -= 1
+        elif diff < 0 and quotas[tipo] > 0:
+            quotas[tipo] -= 1
+            diff += 1
+        guard += 1
 
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
-    base_quota = max(1, size // len(CANONICAL_TYPES))
     for tipo in CANONICAL_TYPES:
         bucket = by_type.get(tipo, [])
-        take = min(base_quota, len(bucket))
-        for event in bucket[:take]:
+        for event in bucket[: quotas[tipo]]:
             selected.append(event)
             selected_ids.add(event["idEvento"])
 
-    remaining = [event for event in events if event["idEvento"] not in selected_ids]
-    needed = size - len(selected)
-    if needed > 0:
+    if len(selected) < size:
+        remaining = [event for event in events if event["idEvento"] not in selected_ids]
+        needed = size - len(selected)
         selected.extend(remaining[:needed])
 
     if len(selected) < size:
