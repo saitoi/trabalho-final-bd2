@@ -201,13 +201,12 @@ O frontend sobe em `http://localhost:3000`. As chamadas `/api/*` são automatica
 
 | Fonte | Descrição |
 | ----- | --------- |
-| Fogo Cruzado | Violência armada (RJ/PE/BA/PA) — requer credenciais no `.env` |
-| INPE BDQueimadas | Detecção de focos de queimada por satélite |
-| INMET | Dados meteorológicos históricos |
+| Fogo Cruzado | Violência armada (extração RJ/PE/BA/PA, filtrada para o município do Rio na normalização) — requer credenciais no `.env` |
+| INPE BDQueimadas | Detecção de focos de queimada por satélite (extração nacional, filtrada para o Rio na normalização) |
+| INMET | Dados meteorológicos históricos (extração nacional, filtrada para o Rio na normalização) |
 | IBGE | Limites municipais e dados geográficos |
 | OpenStreetMap | Dados geoespaciais via Overpass API |
-| NYC 311 | Solicitações de serviço urbano (volume complementar) |
 | CEMADEN | Dados hidrológicos — download manual (CAPTCHA) |
 | Portal Rio 1746 | Solicitações de serviço do município do Rio — download manual |
 
-Os recortes de benchmark priorizam dados reais já coletados e normalizados.
+O dataset final é escopado a uma única cidade (Rio de Janeiro), conforme o enunciado do trabalho. `normalize_events.py` filtra Fogo Cruzado/INPE/INMET para o município do Rio (descartando o restante com o motivo `fora_do_escopo_geografico`) e não ingere mais o NYC 311, que só existia como complemento de volume sem valor analítico. Quando os dados reais do Rio ficam abaixo da meta de volume, o gerador sintético (`generate_synthetic`) completa com eventos sintéticos localizados no Rio — uso de dados sintéticos é permitido pelo enunciado para atingir os volumes de 1K/50K/100K.

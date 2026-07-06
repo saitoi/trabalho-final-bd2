@@ -86,16 +86,19 @@ MongoDB          → loaded from data/processed/benchmarks/
 
 | Key | Description | Notes |
 |-----|-------------|-------|
-| `fogo_cruzado` | Armed violence incidents (RJ/PE/BA/PA) | Requires API credentials in `.env` |
-| `inpe_bdqueimadas` | Satellite fire/burn detection | Automated |
-| `inmet` | Historical weather data | Automated |
+| `fogo_cruzado` | Armed violence incidents (extracted for RJ/PE/BA/PA, filtered to Rio de Janeiro city at normalization) | Requires API credentials in `.env` |
+| `inpe_bdqueimadas` | Satellite fire/burn detection (nationwide extraction, filtered to Rio de Janeiro city at normalization) | Automated |
+| `inmet` | Historical weather data (nationwide extraction, filtered to Rio de Janeiro city at normalization) | Automated |
 | `ibge` | Municipality/geographic boundaries | Automated |
 | `osm` | OpenStreetMap via Overpass API | Automated |
-| `nyc311` | NYC 311 service requests (volume fallback) | Automated |
 | `cemaden` | Hydrological risk data | Manual download required (CAPTCHA) |
 | `portal_rio_1746` | Rio city service requests | Manual download required |
 
 OSM Geofabrik is disabled by default (files too large).
+
+### Geographic scope
+
+The system models a **single city (Rio de Janeiro)**, per the assignment scenario. `normalize_events.py` filters `fogo_cruzado`, `inpe_bdqueimadas`, and `inmet` records to Rio de Janeiro city (rejecting everything else with reason `fora_do_escopo_geografico`) and no longer ingests `nyc311` (previously kept only as a volume filler with no analytical value). When real Rio data falls short of `--target-total`, `generate_synthetic()` fills the remainder with synthetic Rio de Janeiro events — synthetic data generation is explicitly permitted by the assignment (see `domain_context/instrucoes-trabalho.pdf`, section 5) to reach the 1K/50K/100K benchmark tiers.
 
 ### Canonical event schema
 

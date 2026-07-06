@@ -83,9 +83,6 @@ const DOCUMENT_OPERATORS = [
 ]
 
 const EMPTY_LOCATION_OPTIONS = {
-  paises: [],
-  estados: [],
-  cidades: [],
   bairros: [],
 }
 
@@ -141,9 +138,6 @@ export default function EventListPage() {
   const [draft, setDraft] = useState({
     q: '',
     tipo: '',
-    pais: '',
-    estado: '',
-    cidade: '',
     bairro: '',
     status: '',
     minGravidade: '',
@@ -200,19 +194,9 @@ export default function EventListPage() {
     const loadFilterOptions = async () => {
       setFilterOptionsLoading(true)
       try {
-        const params = cleanFilters({
-          pais: draft.pais,
-          estado: draft.estado,
-          cidade: draft.cidade,
-        })
-        const response = await getEventFilterOptions(params)
+        const response = await getEventFilterOptions()
         if (active) {
-          setFilterOptions({
-            paises: response.data.paises ?? [],
-            estados: response.data.estados ?? [],
-            cidades: response.data.cidades ?? [],
-            bairros: response.data.bairros ?? [],
-          })
+          setFilterOptions({ bairros: response.data.bairros ?? [] })
         }
       } catch (err) {
         if (active) {
@@ -231,7 +215,7 @@ export default function EventListPage() {
     return () => {
       active = false
     }
-  }, [draft.pais, draft.estado, draft.cidade])
+  }, [])
 
   const columns = useMemo(
     () => [
@@ -301,25 +285,6 @@ export default function EventListPage() {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  const updateLocationDraft = (key, value) => {
-    setDraft((current) => {
-      const next = { ...current, [key]: value }
-      if (key === 'pais') {
-        next.estado = ''
-        next.cidade = ''
-        next.bairro = ''
-      }
-      if (key === 'estado') {
-        next.cidade = ''
-        next.bairro = ''
-      }
-      if (key === 'cidade') {
-        next.bairro = ''
-      }
-      return next
-    })
-  }
-
   const applyFilters = (event) => {
     event.preventDefault()
     setPage(1)
@@ -336,9 +301,6 @@ export default function EventListPage() {
     const next = {
       q: '',
       tipo: '',
-      pais: '',
-      estado: '',
-      cidade: '',
       bairro: '',
       status: '',
       minGravidade: '',
@@ -496,59 +458,14 @@ export default function EventListPage() {
               <FieldSeparator>Localizacao e periodo</FieldSeparator>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-                <Field className="lg:col-span-2">
-                  <FieldLabel htmlFor="pais">Pais</FieldLabel>
-                  <select
-                    id="pais"
-                    className={CONTROL_CLASS}
-                    value={draft.pais}
-                    disabled={filterOptionsLoading && filterOptions.paises.length === 0}
-                    onChange={(event) => updateLocationDraft('pais', event.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {filterOptions.paises.map((pais) => (
-                      <option key={pais} value={pais}>{pais}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field className="lg:col-span-1">
-                  <FieldLabel htmlFor="estado">UF</FieldLabel>
-                  <select
-                    id="estado"
-                    className={CONTROL_CLASS}
-                    value={draft.estado}
-                    disabled={filterOptionsLoading && filterOptions.estados.length === 0}
-                    onChange={(event) => updateLocationDraft('estado', event.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {filterOptions.estados.map((estado) => (
-                      <option key={estado} value={estado}>{estado}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field className="lg:col-span-2">
-                  <FieldLabel htmlFor="cidade">Cidade</FieldLabel>
-                  <select
-                    id="cidade"
-                    className={CONTROL_CLASS}
-                    value={draft.cidade}
-                    disabled={filterOptionsLoading && filterOptions.cidades.length === 0}
-                    onChange={(event) => updateLocationDraft('cidade', event.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {filterOptions.cidades.map((cidade) => (
-                      <option key={cidade} value={cidade}>{cidade}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field className="lg:col-span-3">
+                <Field className="lg:col-span-6">
                   <FieldLabel htmlFor="bairro">Bairro</FieldLabel>
                   <select
                     id="bairro"
                     className={CONTROL_CLASS}
                     value={draft.bairro}
                     disabled={filterOptionsLoading && filterOptions.bairros.length === 0}
-                    onChange={(event) => updateLocationDraft('bairro', event.target.value)}
+                    onChange={(event) => updateDraft('bairro', event.target.value)}
                   >
                     <option value="">Todos</option>
                     {filterOptions.bairros.map((bairro) => (
@@ -556,11 +473,11 @@ export default function EventListPage() {
                     ))}
                   </select>
                 </Field>
-                <Field className="lg:col-span-2">
+                <Field className="lg:col-span-3">
                   <FieldLabel htmlFor="inicio">Inicio</FieldLabel>
                   <Input id="inicio" type="date" value={draft.inicio} onChange={(event) => updateDraft('inicio', event.target.value)} />
                 </Field>
-                <Field className="lg:col-span-2">
+                <Field className="lg:col-span-3">
                   <FieldLabel htmlFor="fim">Fim</FieldLabel>
                   <Input id="fim" type="date" value={draft.fim} onChange={(event) => updateDraft('fim', event.target.value)} />
                 </Field>

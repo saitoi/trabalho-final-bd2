@@ -47,6 +47,8 @@ const TYPE_COLORS = {
 const CONTROL_CLASS =
   'h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring'
 
+const LIMIT_OPTIONS = [500, 1000, 2000, 5000]
+
 function circleFeature(center, radiusKm) {
   if (!center) return null
   const points = 96
@@ -87,12 +89,13 @@ export default function MapPage() {
   const [center, setCenter] = useState(null)
   const [selectingCenter, setSelectingCenter] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [limit, setLimit] = useState(1000)
 
-  const loadEvents = async (nextTipo = tipo) => {
+  const loadEvents = async (nextTipo = tipo, nextLimit = limit) => {
     setLoading(true)
     setSelected(null)
     try {
-      const response = await getEvents({ tipo: nextTipo || undefined, limit: 1000 })
+      const response = await getEvents({ tipo: nextTipo || undefined, limit: nextLimit })
       setEvents(response.data ?? [])
     } catch (err) {
       setEvents([])
@@ -102,8 +105,8 @@ export default function MapPage() {
   }
 
   useEffect(() => {
-    loadEvents(tipo)
-  }, [tipo])
+    loadEvents(tipo, limit)
+  }, [tipo, limit])
 
   const radiusData = useMemo(() => circleFeature(center, radiusKm), [center, radiusKm])
 
@@ -112,7 +115,7 @@ export default function MapPage() {
     setLoading(true)
     setSelected(null)
     try {
-      const response = await getEventsByLocation(center.lat, center.lon, radiusKm)
+      const response = await getEventsByLocation(center.lat, center.lon, radiusKm, limit)
       setEvents(response.data ?? [])
     } finally {
       setLoading(false)
@@ -122,7 +125,7 @@ export default function MapPage() {
   const resetRadius = () => {
     setCenter(null)
     setSelectingCenter(false)
-    loadEvents(tipo)
+    loadEvents(tipo, limit)
   }
 
   return (
@@ -248,6 +251,20 @@ export default function MapPage() {
                   <option value="">Todos</option>
                   {TIPOS.map((option) => (
                     <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="map-limit">Eventos exibidos</FieldLabel>
+                <select
+                  id="map-limit"
+                  className={CONTROL_CLASS}
+                  value={limit}
+                  onChange={(event) => setLimit(Number(event.target.value))}
+                >
+                  {LIMIT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option.toLocaleString('pt-BR')}</option>
                   ))}
                 </select>
               </Field>

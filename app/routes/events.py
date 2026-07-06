@@ -198,7 +198,7 @@ def search_events(
 def list_events(
     eventos: EventsCollectionDep,
     tipo: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=2000)] = 500,
+    limit: Annotated[int, Query(ge=1, le=20000)] = 500,
 ) -> list[EventRead]:
     query: dict[str, Any] = {}
     if tipo:
@@ -235,6 +235,7 @@ def events_by_location(
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
     km: Annotated[float, Query(gt=0, le=100)] = 5,
+    limit: Annotated[int, Query(ge=1, le=20000)] = 500,
 ) -> list[EventRead]:
     query = {
         "localizacao": {
@@ -244,7 +245,7 @@ def events_by_location(
             }
         }
     }
-    results = [_strip_id(d) for d in eventos.find(query).limit(500)]
+    results = [_strip_id(d) for d in eventos.find(query).limit(limit)]
     return results
 
 

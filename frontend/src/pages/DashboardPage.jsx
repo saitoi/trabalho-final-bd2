@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -21,11 +21,9 @@ import {
   Users,
 } from 'lucide-react'
 import {
-  getStatsByCity,
   getStatsByNeighborhood,
   getStatsByReporter,
   getStatsBySeverity,
-  getStatsByState,
   getStatsByType,
   getStatsSummary,
   getStatsTemporal,
@@ -141,15 +139,13 @@ export default function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [summary, byType, byNeighborhood, temporal, severity, states, cities, reporters] =
+      const [summary, byType, byNeighborhood, temporal, severity, reporters] =
         await Promise.all([
           getStatsSummary(),
           getStatsByType(),
           getStatsByNeighborhood(),
           getStatsTemporal(),
           getStatsBySeverity(),
-          getStatsByState(),
-          getStatsByCity(),
           getStatsByReporter(),
         ])
       setData({
@@ -158,8 +154,6 @@ export default function DashboardPage() {
         byNeighborhood: normalizeGroup(byNeighborhood.data).slice(0, 12),
         temporal: normalizeGroup(temporal.data).map((row) => ({ data: row.name, total: row.total })),
         severity: normalizeSeverity(severity.data),
-        states: normalizeGroup(states.data).slice(0, 12),
-        cities: normalizeGroup(cities.data).slice(0, 12),
         reporters: normalizeGroup(reporters.data).slice(0, 8),
       })
     } catch (err) {
@@ -173,11 +167,6 @@ export default function DashboardPage() {
   useEffect(() => {
     load()
   }, [])
-
-  const locationRows = useMemo(() => {
-    if (!data) return []
-    return data.cities.map((row, index) => ({ ...row, fill: EVENT_COLORS[index % EVENT_COLORS.length] }))
-  }, [data])
 
   if (loading) return <LoadingDashboard />
 
@@ -208,7 +197,7 @@ export default function DashboardPage() {
             <Badge variant="secondary">{formatInt(summary.total)} eventos</Badge>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Recorte operacional da colecao principal com distribuicao por tipo, territorio, gravidade e evolucao diaria.
+            Recorte operacional da colecao principal com distribuicao por tipo, bairro, gravidade e evolucao diaria.
           </p>
         </div>
         <Button onClick={load} variant="outline">
@@ -217,11 +206,11 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
           title="Eventos carregados"
           value={formatInt(summary.total)}
-          description={`${formatInt(summary.brazil)} registros no Brasil e ${formatInt(summary.rioState)} no RJ.`}
+          description="Total de registros na colecao (Rio de Janeiro)."
           icon={Siren}
         />
         <MetricCard
@@ -229,12 +218,6 @@ export default function DashboardPage() {
           value={formatDecimal(summary.avgSeverity)}
           description={`${formatInt(summary.critical)} eventos no nivel 5.`}
           icon={ShieldAlert}
-        />
-        <MetricCard
-          title="Cobertura urbana"
-          value={`${formatInt(summary.cities)} cidades`}
-          description={`${formatInt(summary.neighborhoods)} bairros identificados.`}
-          icon={MapPin}
         />
         <MetricCard
           title="Vitimas registradas"
@@ -324,47 +307,29 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="territorio" className="gap-3">
+      <Tabs defaultValue="bairros" className="gap-3">
         <TabsList variant="line">
-          <TabsTrigger value="territorio">Territorio</TabsTrigger>
+          <TabsTrigger value="bairros">Bairros</TabsTrigger>
           <TabsTrigger value="metadados">Metadados</TabsTrigger>
         </TabsList>
-        <TabsContent value="territorio">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Cidades com mais registros</CardTitle>
-                <CardDescription>Top cidades encontradas na colecao.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[320px] w-full">
-                  <BarChart data={locationRows} layout="vertical" margin={{ left: 12, right: 24 }}>
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" tickLine={false} axisLine={false} />
-                    <YAxis dataKey="name" type="category" width={128} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="var(--primary)" />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Estados</CardTitle>
-                <CardDescription>Distribuicao agregada por UF.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-3">
-                  {data.states.slice(0, 8).map((row) => (
-                    <div key={row.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-muted-foreground">{row.name}</span>
-                      <Badge variant="secondary">{formatInt(row.total)}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="bairros">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bairros com mais registros</CardTitle>
+              <CardDescription>Top bairros do Rio de Janeiro na colecao.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[320px] w-full">
+                <BarChart data={data.byNeighborhood} layout="vertical" margin={{ left: 12, right: 24 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" width={128} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="var(--primary)" />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
         </TabsContent>
         <TabsContent value="metadados">
           <div className="grid gap-4 md:grid-cols-3">
