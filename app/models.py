@@ -80,3 +80,9 @@ class NodeStatus(BaseModel):
     ok: bool
     members: list[ReplicaMember]
     error: str | None = None
+
+
+class NodeActionResponse(BaseModel):
+    ok: bool
+    name: str
+    action: str

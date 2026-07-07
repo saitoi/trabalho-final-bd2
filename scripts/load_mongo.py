@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=1000)
     parser.add_argument("--db", default="bd2")
     parser.add_argument("--collection", default="eventos")
-    parser.add_argument("--metrics", default="data/processed/load_results.jsonl")
+    parser.add_argument("--metrics", default="dataset/processed/load_results.jsonl")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

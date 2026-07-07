@@ -4,10 +4,10 @@
 
 A pipeline local gerou os seguintes arquivos:
 
-- `data/processed/events_normalized.jsonl`: 152.650 eventos normalizados.
-- `data/processed/benchmarks/events_1000.jsonl`: 1.000 eventos.
-- `data/processed/benchmarks/events_50000.jsonl`: 50.000 eventos.
-- `data/processed/benchmarks/events_100000.jsonl`: 100.000 eventos.
+- `dataset/processed/events_normalized.jsonl`: 152.650 eventos normalizados.
+- `dataset/processed/benchmarks/events_1000.jsonl`: 1.000 eventos.
+- `dataset/processed/benchmarks/events_50000.jsonl`: 50.000 eventos.
+- `dataset/processed/benchmarks/events_100000.jsonl`: 100.000 eventos.
 
 No dataset de 100.000 eventos, 82.262 registros são do Brasil. Dados sintéticos não foram gerados porque os dados reais superaram a carga alvo.
 
@@ -46,8 +46,8 @@ O experimento executou uma agregação por tipo antes e depois de parar `mongo2`
 
 ## Saídas
 
-- `data/processed/experiments/results.json`
-- `data/processed/experiments/results.csv`
+- `dataset/processed/experiments/results.json`
+- `dataset/processed/experiments/results.csv`
 
 ## Procedimento manual equivalente
 

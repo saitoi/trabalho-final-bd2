@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -13,21 +13,28 @@ import {
 } from 'recharts'
 import {
   AlertTriangle,
+  ChevronDown,
   Crosshair,
+  Filter,
   MapPin,
   RefreshCw,
   ShieldAlert,
   Siren,
   Users,
+  X,
 } from 'lucide-react'
 import {
   getStatsByNeighborhood,
+  getStatsByNeighborhoodType,
   getStatsByReporter,
   getStatsBySeverity,
   getStatsByType,
+  getStatsByWeekday,
   getStatsSummary,
   getStatsTemporal,
+  getStatsTemporalByType,
 } from '@/api'
+import { EVENT_TIPOS } from '@/lib/eventTypes'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,6 +46,12 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -65,6 +78,9 @@ const chartConfig = {
   gravidade: { label: 'Gravidade', color: 'var(--accent)' },
 }
 
+const CONTROL_CLASS =
+  'h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
+
 function formatInt(value) {
   return Number(value ?? 0).toLocaleString('pt-BR')
 }
@@ -89,10 +105,28 @@ function normalizeSeverity(rows) {
   const totals = new Map((rows ?? []).map((row) => [Number(row._id), row.total ?? 0]))
   return SEVERITY_LEVELS.map((item) => ({
     ...item,
-    name: `Gravidade ${item.level}`,
+    name: item.label,
     total: totals.get(item.level) ?? 0,
     fill: item.color,
   }))
+}
+
+function normalizeWeekday(rows) {
+  return (rows ?? []).map((row) => ({ name: row.label, total: row.total ?? 0 }))
+}
+
+function normalizePivoted(payload, colorFor) {
+  const tipos = payload?.tipos ?? []
+  return {
+    rows: payload?.rows ?? [],
+    tipos: tipos.map((tipo, index) => ({ tipo, fill: colorFor(tipo, index) })),
+  }
+}
+
+function cleanFilters(filters) {
+  return Object.fromEntries(
+    Object.entries(filters).filter(([, value]) => value !== '' && value != null),
+  )
 }
 
 function MetricCard({ title, value, description, icon: Icon }) {
@@ -131,6 +165,8 @@ function LoadingDashboard() {
 }
 
 export default function DashboardPage() {
+  const [draft, setDraft] = useState({ tipos: [], inicio: '', fim: '' })
+  const [filters, setFilters] = useState({})
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -139,20 +175,32 @@ export default function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [summary, byType, byNeighborhood, temporal, severity, reporters] =
+      const periodOnly = { inicio: filters.inicio, fim: filters.fim }
+      const [summary, byType, byNeighborhood, neighborhoodType, weekday, temporal, temporalByType, severity, reporters] =
         await Promise.all([
-          getStatsSummary(),
-          getStatsByType(),
-          getStatsByNeighborhood(),
-          getStatsTemporal(),
-          getStatsBySeverity(),
-          getStatsByReporter(),
+          getStatsSummary(filters),
+          getStatsByType(filters),
+          getStatsByNeighborhood(filters),
+          getStatsByNeighborhoodType(periodOnly),
+          getStatsByWeekday(filters),
+          getStatsTemporal(filters),
+          getStatsTemporalByType(periodOnly),
+          getStatsBySeverity(filters),
+          getStatsByReporter(filters),
         ])
+
+      const byTypeNormalized = normalizeGroup(byType.data)
+      const tipoColorMap = new Map(byTypeNormalized.map((row) => [row.name, row.fill]))
+      const colorFor = (tipo, index) => tipoColorMap.get(tipo) ?? EVENT_COLORS[index % EVENT_COLORS.length]
+
       setData({
         summary: summary.data,
-        byType: normalizeGroup(byType.data),
+        byType: byTypeNormalized,
         byNeighborhood: normalizeGroup(byNeighborhood.data).slice(0, 12),
+        neighborhoodType: normalizePivoted(neighborhoodType.data, colorFor),
+        weekday: normalizeWeekday(weekday.data),
         temporal: normalizeGroup(temporal.data).map((row) => ({ data: row.name, total: row.total })),
+        temporalByType: normalizePivoted(temporalByType.data, colorFor),
         severity: normalizeSeverity(severity.data),
         reporters: normalizeGroup(reporters.data).slice(0, 8),
       })
@@ -166,16 +214,111 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load()
-  }, [])
+  }, [filters])
 
-  if (loading) return <LoadingDashboard />
+  const toggleDraftTipo = (tipo) => {
+    setDraft((prev) => ({
+      ...prev,
+      tipos: prev.tipos.includes(tipo)
+        ? prev.tipos.filter((value) => value !== tipo)
+        : [...prev.tipos, tipo],
+    }))
+  }
+
+  const applyFilters = (event) => {
+    event.preventDefault()
+    setFilters(cleanFilters({ tipo: draft.tipos.join(','), inicio: draft.inicio, fim: draft.fim }))
+  }
+
+  const resetFilters = () => {
+    setDraft({ tipos: [], inicio: '', fim: '' })
+    setFilters({})
+  }
+
+  const hasActiveFilters = Object.keys(filters).length > 0
+
+  const activeFilterLabel = useMemo(() => {
+    const parts = []
+    if (filters.tipo) parts.push(filters.tipo.split(',').join(' + '))
+    if (filters.inicio || filters.fim) {
+      parts.push(`${filters.inicio ?? '...'} – ${filters.fim ?? '...'}`)
+    }
+    return parts.join(' · ')
+  }, [filters])
+
+  const filterBar = (
+    <form onSubmit={applyFilters} className="flex flex-wrap items-end gap-3 rounded-md border bg-card p-3">
+      <div className="flex min-w-52 flex-col gap-1">
+        <label className="text-xs text-muted-foreground">Tipo de evento</label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" className={`${CONTROL_CLASS} justify-between font-normal`}>
+              <span className="truncate">
+                {draft.tipos.length === 0
+                  ? 'Todos'
+                  : draft.tipos.length === 1
+                    ? draft.tipos[0]
+                    : `${draft.tipos.length} tipos selecionados`}
+              </span>
+              <ChevronDown className="size-4 shrink-0 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+            {EVENT_TIPOS.map((tipo) => (
+              <DropdownMenuCheckboxItem
+                key={tipo}
+                checked={draft.tipos.includes(tipo)}
+                onSelect={(event) => event.preventDefault()}
+                onCheckedChange={() => toggleDraftTipo(tipo)}
+              >
+                {tipo}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="flex min-w-36 flex-col gap-1">
+        <label className="text-xs text-muted-foreground" htmlFor="dashboard-inicio">De</label>
+        <input
+          id="dashboard-inicio"
+          type="date"
+          className={CONTROL_CLASS}
+          value={draft.inicio}
+          onChange={(event) => setDraft((prev) => ({ ...prev, inicio: event.target.value }))}
+        />
+      </div>
+      <div className="flex min-w-36 flex-col gap-1">
+        <label className="text-xs text-muted-foreground" htmlFor="dashboard-fim">Até</label>
+        <input
+          id="dashboard-fim"
+          type="date"
+          className={CONTROL_CLASS}
+          value={draft.fim}
+          onChange={(event) => setDraft((prev) => ({ ...prev, fim: event.target.value }))}
+        />
+      </div>
+      <Button type="submit" size="sm">
+        <Filter data-icon="inline-start" />
+        Aplicar
+      </Button>
+      {hasActiveFilters && (
+        <Button type="button" size="sm" variant="outline" onClick={resetFilters}>
+          <X data-icon="inline-start" />
+          Limpar filtro
+        </Button>
+      )}
+    </form>
+  )
+
+  if (loading && !data) return <LoadingDashboard />
 
   if (error || !data) {
     return (
-      <div className="p-4 md:p-6">
+      <div className="flex flex-col gap-4 p-4 md:p-6">
+        {filterBar}
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>API indisponivel</AlertTitle>
+          <AlertTitle>API indisponível</AlertTitle>
           <AlertDescription>
             Verifique se o backend esta rodando em `http://localhost:8000` e tente atualizar.
           </AlertDescription>
@@ -195,16 +338,19 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold">Visão analítica</h2>
             <Badge variant="secondary">{formatInt(summary.total)} eventos</Badge>
+            {hasActiveFilters && <Badge variant="outline">Filtrado: {activeFilterLabel}</Badge>}
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Recorte operacional da coleção principal com distribuição por tipo, bairro, gravidade e evolução diária.
           </p>
         </div>
-        <Button onClick={load} variant="outline">
-          <RefreshCw data-icon="inline-start" />
+        <Button onClick={load} variant="outline" disabled={loading}>
+          <RefreshCw data-icon="inline-start" className={loading ? 'animate-spin' : undefined} />
           Atualizar
         </Button>
       </div>
+
+      {filterBar}
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
@@ -258,7 +404,22 @@ export default function DashboardPage() {
           <CardContent className="flex flex-col gap-4">
             <ChartContainer config={chartConfig} className="h-[280px] w-full">
               <PieChart>
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      nameKey="name"
+                      hideLabel
+                      formatter={(value, name) => (
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <span className="text-muted-foreground">{name}</span>
+                          <span className="font-mono font-medium text-foreground tabular-nums">
+                            {formatInt(value)}
+                          </span>
+                        </div>
+                      )}
+                    />
+                  }
+                />
                 <Pie data={data.severity} dataKey="total" nameKey="name" innerRadius={70} outerRadius={120}>
                   {data.severity.map((row) => (
                     <Cell key={row.name} fill={row.fill} />
@@ -274,12 +435,8 @@ export default function DashboardPage() {
                     style={{ backgroundColor: row.fill }}
                     aria-hidden="true"
                   />
-                  <span className="text-muted-foreground">
-                    {row.level} - {row.label}
-                  </span>
-                  <Badge variant="outline" className="ml-auto">
-                    {formatInt(row.total)}
-                  </Badge>
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <Badge variant="outline">{formatInt(row.total)}</Badge>
                 </div>
               ))}
             </div>
@@ -287,25 +444,99 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Evolução temporal</CardTitle>
-          <CardDescription>
-            {dateRange.min?.slice(0, 10) ?? 'início desconhecido'} até {dateRange.max?.slice(0, 10) ?? 'fim desconhecido'}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[280px] w-full">
-            <LineChart data={data.temporal} margin={{ left: 12, right: 24 }}>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="data" tickLine={false} axisLine={false} minTickGap={36} />
-              <YAxis tickLine={false} axisLine={false} width={72} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line type="monotone" dataKey="total" stroke="var(--primary)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolução temporal</CardTitle>
+            <CardDescription>
+              {dateRange.min?.slice(0, 10) ?? 'início desconhecido'} até {dateRange.max?.slice(0, 10) ?? 'fim desconhecido'}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <LineChart data={data.temporal} margin={{ left: 12, right: 24 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="data" tickLine={false} axisLine={false} minTickGap={36} />
+                <YAxis tickLine={false} axisLine={false} width={72} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line type="monotone" dataKey="total" stroke="var(--primary)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolução temporal por tipo</CardTitle>
+            <CardDescription>Comparativo dos tipos mais frequentes no período selecionado.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <LineChart data={data.temporalByType.rows} margin={{ left: 12, right: 24 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="data" tickLine={false} axisLine={false} minTickGap={36} />
+                <YAxis tickLine={false} axisLine={false} width={72} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {data.temporalByType.tipos.map(({ tipo, fill }) => (
+                  <Line key={tipo} type="monotone" dataKey={tipo} stroke={fill} strokeWidth={2} dot={false} />
+                ))}
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Bairros por tipo</CardTitle>
+            <CardDescription>Composição por tipo de evento nos bairros com mais registros.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={chartConfig}
+              className="w-full"
+              style={{ height: Math.max(360, data.neighborhoodType.rows.length * 34) }}
+            >
+              <BarChart data={data.neighborhoodType.rows} layout="vertical" margin={{ left: 12, right: 24 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} />
+                <YAxis
+                  dataKey="bairro"
+                  type="category"
+                  width={128}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11 }}
+                  interval={0}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {data.neighborhoodType.tipos.map(({ tipo, fill }) => (
+                  <Bar key={tipo} dataKey={tipo} stackId="bairro-tipo" fill={fill} radius={[0, 0, 0, 0]} />
+                ))}
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição por dia da semana</CardTitle>
+            <CardDescription>Total de eventos agrupados por dia da semana.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[360px] w-full">
+              <BarChart data={data.weekday} margin={{ left: 12, right: 24 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} width={56} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="total" radius={[6, 6, 0, 0]} fill="var(--primary)" />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       <Tabs defaultValue="bairros" className="gap-3">
         <TabsList variant="line">
@@ -319,11 +550,23 @@ export default function DashboardPage() {
               <CardDescription>Top bairros do Rio de Janeiro na coleção.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[320px] w-full">
+              <ChartContainer
+                config={chartConfig}
+                className="w-full"
+                style={{ height: Math.max(320, data.byNeighborhood.length * 34) }}
+              >
                 <BarChart data={data.byNeighborhood} layout="vertical" margin={{ left: 12, right: 24 }}>
                   <CartesianGrid horizontal={false} />
                   <XAxis type="number" tickLine={false} axisLine={false} />
-                  <YAxis dataKey="name" type="category" width={128} tickLine={false} axisLine={false} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={128}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                  />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="total" radius={[0, 6, 6, 0]} fill="var(--primary)" />
                 </BarChart>

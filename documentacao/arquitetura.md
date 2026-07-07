@@ -3,8 +3,8 @@
 ## Camadas
 
 ```text
-data/raw/        -> dados originais, nunca modificados
-data/processed/  -> inventário, normalização, rejeições, benchmarks e métricas
+dataset/raw/        -> dados originais, nunca modificados
+dataset/processed/  -> inventário, normalização, rejeições, benchmarks e métricas
 MongoDB          -> coleção consultável para demonstração e experimentos
 ```
 

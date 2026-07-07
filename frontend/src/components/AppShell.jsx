@@ -93,9 +93,6 @@ export default function AppShell({ children }) {
             <Activity data-icon="inline-start" />
             rs0 ativo
           </Badge>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Base documental para consultas geograficas, temporais e experimentos de tolerancia a falhas.
-          </p>
         </div>
       </aside>
 

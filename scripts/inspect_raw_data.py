@@ -162,10 +162,10 @@ def inspect_raw(raw_dir: Path, samples_dir: Path, sample_limit: int) -> dict[str
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspeciona a camada data/raw sem modificá-la.")
-    parser.add_argument("--raw-dir", default="data/raw")
-    parser.add_argument("--out", default="data/processed/raw_inventory.json")
-    parser.add_argument("--samples-dir", default="data/samples")
+    parser = argparse.ArgumentParser(description="Inspeciona a camada dataset/raw sem modificá-la.")
+    parser.add_argument("--raw-dir", default="dataset/raw")
+    parser.add_argument("--out", default="dataset/processed/raw_inventory.json")
+    parser.add_argument("--samples-dir", default="dataset/samples")
     parser.add_argument("--sample-limit", type=int, default=25)
     args = parser.parse_args()
 

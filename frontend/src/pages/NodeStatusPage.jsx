@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, RefreshCw, Server, Terminal, WifiOff } from 'lucide-react'
-import { getNodeStatus } from '@/api'
+import { AlertTriangle, CheckCircle2, Play, RefreshCw, Server, Square, Terminal, WifiOff } from 'lucide-react'
+import { getNodeStatus, startNode, stopNode } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,10 @@ function memberState(member) {
   return member.state || 'UNKNOWN'
 }
 
+function shortName(member) {
+  return member.name?.split(':').pop() ?? member.name
+}
+
 function statusVariant(state) {
   if (state === 'PRIMARY') return 'default'
   if (state === 'SECONDARY') return 'secondary'
@@ -42,9 +46,10 @@ function statusVariant(state) {
   return 'outline'
 }
 
-function NodeCard({ member }) {
+function NodeCard({ member, pending, onStop, onStart }) {
   const state = memberState(member)
   const Icon = state === 'DOWN' ? WifiOff : state === 'PRIMARY' ? CheckCircle2 : Server
+  const isDown = state === 'DOWN'
 
   return (
     <Card>
@@ -58,7 +63,7 @@ function NodeCard({ member }) {
         </div>
         <Badge variant={statusVariant(state)}>{member.health ? 'online' : 'offline'}</Badge>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex flex-col gap-1 rounded-md border p-3">
             <span className="text-muted-foreground">Uptime</span>
@@ -69,6 +74,15 @@ function NodeCard({ member }) {
             <span className="font-medium">{member.health ?? '-'}</span>
           </div>
         </div>
+        <Button
+          size="sm"
+          variant={isDown ? 'default' : 'destructive'}
+          disabled={pending}
+          onClick={isDown ? onStart : onStop}
+        >
+          {isDown ? <Play data-icon="inline-start" /> : <Square data-icon="inline-start" />}
+          {pending ? 'Aguarde...' : isDown ? 'Restaurar nó' : 'Parar nó'}
+        </Button>
       </CardContent>
     </Card>
   )
@@ -77,22 +91,57 @@ function NodeCard({ member }) {
 export default function NodeStatusPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [pendingNode, setPendingNode] = useState(null)
+  const [actionError, setActionError] = useState(null)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     try {
       const response = await getNodeStatus()
       setData(response.data)
+      return response.data
     } catch (err) {
-      setData({ ok: false, error: 'Sem conexão com a API', members: [] })
+      const fallback = { ok: false, error: 'Sem conexão com a API', members: [] }
+      setData(fallback)
+      return fallback
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     load()
   }, [])
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const runAction = async (name, action, expectDown) => {
+    setActionError(null)
+    setPendingNode(name)
+    try {
+      await action(name)
+      const deadline = Date.now() + 30000
+      let current = await load({ silent: true })
+      let changed = false
+      while (Date.now() < deadline) {
+        const member = current?.members?.find((m) => shortName(m) === name)
+        const isDown = !member || member.health === 0
+        if (isDown === expectDown) {
+          changed = true
+          break
+        }
+        await sleep(1500)
+        current = await load({ silent: true })
+      }
+      if (!changed) {
+        setActionError(`O nó ${name} ainda não refletiu a mudança de estado após 30s.`)
+      }
+    } catch (err) {
+      setActionError(err?.response?.data?.detail || `Falha ao executar ação no nó ${name}`)
+    } finally {
+      setPendingNode(null)
+    }
+  }
 
   const members = useMemo(() => {
     if (data?.members?.length) return data.members
@@ -131,10 +180,29 @@ export default function NodeStatusPage() {
         </Alert>
       )}
 
+      {actionError && (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>Falha na ação</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         {loading
           ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-44" />)
-          : members.map((member) => <NodeCard key={member.name} member={member} />)}
+          : members.map((member) => {
+              const name = shortName(member)
+              return (
+                <NodeCard
+                  key={member.name}
+                  member={member}
+                  pending={pendingNode === name}
+                  onStop={() => runAction(name, stopNode, true)}
+                  onStart={() => runAction(name, startNode, false)}
+                />
+              )
+            })}
       </div>
 
       <Card>

@@ -13,17 +13,17 @@ wheels/
 .uv-cache/
 
 # Raw datasets: keep only the directory placeholder in git.
-data/raw/**
-!data/raw/
-!data/raw/.gitkeep
+dataset/raw/**
+!dataset/raw/
+!dataset/raw/.gitkeep
 
 # Generated processed datasets and local editor swap files.
-data/processed/**
-!data/processed/
-!data/processed/.gitkeep
-data/samples/**
-!data/samples/
-!data/samples/.gitkeep
+dataset/processed/**
+!dataset/processed/
+!dataset/processed/.gitkeep
+dataset/samples/**
+!dataset/samples/
+!dataset/samples/.gitkeep
 *.swp
 
 # Node.js dependencies — always install locally, never commit.

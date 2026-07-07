@@ -63,8 +63,8 @@ def docker(cmd: list[str], compose_file: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Executa experimentos de inserção, consulta e falha de nó.")
-    parser.add_argument("--bench-dir", default="data/processed/benchmarks")
-    parser.add_argument("--out-dir", default="data/processed/experiments")
+    parser.add_argument("--bench-dir", default="dataset/processed/benchmarks")
+    parser.add_argument("--out-dir", default="dataset/processed/experiments")
     parser.add_argument("--db", default="bd2")
     parser.add_argument("--collection", default="eventos")
     parser.add_argument("--batch-size", type=int, default=1000)

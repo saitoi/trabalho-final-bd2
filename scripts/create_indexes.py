@@ -31,7 +31,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Cria índices da coleção eventos.")
     parser.add_argument("--db", default="bd2")
     parser.add_argument("--collection", default="eventos")
-    parser.add_argument("--out", default="data/processed/index_report.json")
+    parser.add_argument("--out", default="dataset/processed/index_report.json")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

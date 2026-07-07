@@ -46,4 +46,4 @@ NYC311 é usado para complementar diversidade real quando fontes brasileiras nã
 
 ## Rejeições
 
-Registros sem coordenada válida, data válida ou formato esperado são escritos em `data/processed/events_rejected.jsonl` com motivo e origem.
+Registros sem coordenada válida, data válida ou formato esperado são escritos em `dataset/processed/events_rejected.jsonl` com motivo e origem.

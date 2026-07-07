@@ -12,6 +12,7 @@ import {
   Search,
 } from 'lucide-react'
 import { createEvent, getEventFilterOptions, searchEvents } from '@/api'
+import { EVENT_TIPOS } from '@/lib/eventTypes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,24 +50,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
-const TIPOS = [
-  'Tiroteio',
-  'Incêndio',
-  'Alagamento',
-  'Chuva intensa',
-  'Risco hidrológico',
-  'Risco geotécnico',
-  'Problema urbano',
-  'Transporte',
-  'Energia',
-  'Vazamento de água',
-  'Interdição de via',
-  'Outro',
-]
+const TIPOS = EVENT_TIPOS
 
 const STATUS = ['Aberto', 'Em andamento', 'Resolvido', 'Fechado']
 
 const DOCUMENT_FIELDS = [
+  { value: 'descricao', label: 'descricao' },
   { value: 'origem.fonte', label: 'origem.fonte' },
   { value: 'origem.idOriginal', label: 'origem.idOriginal' },
   { value: 'origem.arquivoRaw', label: 'origem.arquivoRaw' },
@@ -141,6 +130,7 @@ export default function EventListPage() {
     bairro: '',
     status: '',
     minGravidade: '',
+    maxGravidade: '',
     inicio: '',
     fim: '',
     documentField: '',
@@ -304,6 +294,7 @@ export default function EventListPage() {
       bairro: '',
       status: '',
       minGravidade: '',
+    maxGravidade: '',
       inicio: '',
       fim: '',
       documentField: '',
@@ -402,7 +393,7 @@ export default function EventListPage() {
           <form onSubmit={applyFilters}>
             <FieldGroup className="gap-4">
               <div className="grid gap-3 lg:grid-cols-12">
-                <Field className="lg:col-span-5">
+                <Field className="lg:col-span-4">
                   <FieldLabel htmlFor="q">Busca</FieldLabel>
                   <Input
                     id="q"
@@ -439,19 +430,34 @@ export default function EventListPage() {
                     ))}
                   </select>
                 </Field>
-                <Field className="lg:col-span-2">
-                  <FieldLabel htmlFor="minGravidade">Gravidade minima</FieldLabel>
-                  <select
-                    id="minGravidade"
-                    className={CONTROL_CLASS}
-                    value={draft.minGravidade}
-                    onChange={(event) => updateDraft('minGravidade', event.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {[1, 2, 3, 4, 5].map((value) => (
-                      <option key={value} value={value}>{value}</option>
-                    ))}
-                  </select>
+                <Field className="lg:col-span-3">
+                  <FieldLabel>Gravidade (min/max)</FieldLabel>
+                  <div className="flex gap-2">
+                    <select
+                      id="minGravidade"
+                      aria-label="Gravidade minima"
+                      className={CONTROL_CLASS}
+                      value={draft.minGravidade}
+                      onChange={(event) => updateDraft('minGravidade', event.target.value)}
+                    >
+                      <option value="">Min</option>
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <option key={value} value={value}>{value}</option>
+                      ))}
+                    </select>
+                    <select
+                      id="maxGravidade"
+                      aria-label="Gravidade maxima"
+                      className={CONTROL_CLASS}
+                      value={draft.maxGravidade}
+                      onChange={(event) => updateDraft('maxGravidade', event.target.value)}
+                    >
+                      <option value="">Max</option>
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <option key={value} value={value}>{value}</option>
+                      ))}
+                    </select>
+                  </div>
                 </Field>
               </div>
 
@@ -723,28 +729,19 @@ export default function EventListPage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="form-cidade">Cidade</FieldLabel>
-                  <Input id="form-cidade" value={form.cidade} onChange={(event) => updateForm('cidade', event.target.value)} required />
-                </Field>
-                <Field>
                   <FieldLabel htmlFor="form-bairro">Bairro</FieldLabel>
-                  <Input id="form-bairro" value={form.bairro} onChange={(event) => updateForm('bairro', event.target.value)} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="form-estado">UF</FieldLabel>
-                  <Input
-                    id="form-estado"
-                    maxLength={2}
-                    value={form.estado}
-                    onChange={(event) => updateForm('estado', event.target.value.toUpperCase())}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <Field>
-                  <FieldLabel htmlFor="form-pais">Pais</FieldLabel>
-                  <Input id="form-pais" value={form.pais} onChange={(event) => updateForm('pais', event.target.value)} required />
+                  <select
+                    id="form-bairro"
+                    className={CONTROL_CLASS}
+                    value={form.bairro}
+                    disabled={filterOptionsLoading && filterOptions.bairros.length === 0}
+                    onChange={(event) => updateForm('bairro', event.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {filterOptions.bairros.map((bairro) => (
+                      <option key={bairro} value={bairro}>{bairro}</option>
+                    ))}
+                  </select>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="form-lat">Latitude</FieldLabel>

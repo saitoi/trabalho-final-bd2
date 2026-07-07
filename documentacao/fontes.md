@@ -18,5 +18,5 @@ Dados sintéticos só são gerados se os dados reais normalizados não alcançar
 
 ## Arquivos raw
 
-Os arquivos em `data/raw/` são imutáveis e não são versionados no Git, exceto `data/raw/.gitkeep`.
+Os arquivos em `dataset/raw/` são imutáveis e não são versionados no Git, exceto `dataset/raw/.gitkeep`.
 

@@ -10,7 +10,7 @@
 """
 Pipeline raw para fontes de eventos urbanos e contexto espacial.
 
-Camada RAW: salva exatamente o retorno/arquivo original de cada fonte em data/raw/,
+Camada RAW: salva exatamente o retorno/arquivo original de cada fonte em dataset/raw/,
 sem normalizar para o schema do trabalho. A normalização deve ficar em outro script.
 
 Fontes incluídas:
@@ -815,7 +815,7 @@ def main() -> int:
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
-    raw_dir = Path(args.raw_dir or os.getenv("RAW_DIR", "data/raw"))
+    raw_dir = Path(args.raw_dir or os.getenv("RAW_DIR", "dataset/raw"))
     sources = resolve_sources(args.sources)
 
     ctx = Context(
