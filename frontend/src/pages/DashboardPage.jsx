@@ -175,7 +175,7 @@ export default function DashboardPage() {
       <div className="p-4 md:p-6">
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>API indisponivel</AlertTitle>
+          <AlertTitle>API indisponível</AlertTitle>
           <AlertDescription>
             Verifique se o backend esta rodando em `http://localhost:8000` e tente atualizar.
           </AlertDescription>
@@ -193,11 +193,11 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold">Visao analitica</h2>
+            <h2 className="text-xl font-semibold">Visão analítica</h2>
             <Badge variant="secondary">{formatInt(summary.total)} eventos</Badge>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Recorte operacional da colecao principal com distribuicao por tipo, bairro, gravidade e evolucao diaria.
+            Recorte operacional da coleção principal com distribuição por tipo, bairro, gravidade e evolução diária.
           </p>
         </div>
         <Button onClick={load} variant="outline">
@@ -210,13 +210,13 @@ export default function DashboardPage() {
         <MetricCard
           title="Eventos carregados"
           value={formatInt(summary.total)}
-          description="Total de registros na colecao (Rio de Janeiro)."
+          description="Total de registros na coleção (Rio de Janeiro)."
           icon={Siren}
         />
         <MetricCard
           title="Gravidade media"
           value={formatDecimal(summary.avgSeverity)}
-          description={`${formatInt(summary.critical)} eventos no nivel 5.`}
+          description={`${formatInt(summary.critical)} eventos no nível 5.`}
           icon={ShieldAlert}
         />
         <MetricCard
@@ -231,7 +231,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Eventos por tipo</CardTitle>
-            <CardDescription>Taxonomia consolidada usada no modelo canonico.</CardDescription>
+            <CardDescription>Taxonomia consolidada usada no modelo canônico.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[360px] w-full">
@@ -253,7 +253,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Severidade</CardTitle>
-            <CardDescription>Distribuicao dos eventos entre os niveis 1 a 5.</CardDescription>
+            <CardDescription>Distribuição dos eventos entre os níveis 1 a 5.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <ChartContainer config={chartConfig} className="h-[280px] w-full">
@@ -300,9 +300,9 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Evolucao temporal</CardTitle>
+          <CardTitle>Evolução temporal</CardTitle>
           <CardDescription>
-            {dateRange.min?.slice(0, 10) ?? 'inicio desconhecido'} ate {dateRange.max?.slice(0, 10) ?? 'fim desconhecido'}.
+            {dateRange.min?.slice(0, 10) ?? 'início desconhecido'} até {dateRange.max?.slice(0, 10) ?? 'fim desconhecido'}.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -327,7 +327,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Bairros com mais registros</CardTitle>
-              <CardDescription>Top bairros do Rio de Janeiro na colecao.</CardDescription>
+              <CardDescription>Top bairros do Rio de Janeiro na coleção.</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[320px] w-full">
@@ -347,13 +347,13 @@ export default function DashboardPage() {
             <MetricCard
               title="Maior FRP"
               value={formatDecimal(metadata.maxFirePower)}
-              description="Potencia radiativa maxima nos focos de incendio."
+              description="Potência radiativa máxima nos focos de incêndio."
               icon={Crosshair}
             />
             <MetricCard
               title="Risco de fogo medio"
               value={formatDecimal(metadata.avgFireRisk, 2)}
-              description="Media calculada quando o campo existe na fonte."
+              description="Média calculada quando o campo existe na fonte."
               icon={AlertTriangle}
             />
             <MetricCard
@@ -366,7 +366,7 @@ export default function DashboardPage() {
           <Card className="mt-4">
             <CardHeader>
               <CardTitle>Reportantes identificados</CardTitle>
-              <CardDescription>Distribuicao por identificador publico ou operacional.</CardDescription>
+              <CardDescription>Distribuição por identificador público ou operacional.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

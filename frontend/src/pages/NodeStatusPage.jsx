@@ -16,11 +16,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 const STEPS = [
   { command: null, text: 'Execute uma consulta agregada e guarde o tempo de resposta.' },
-  { command: 'docker stop bd2-mongo2', text: 'Pare um no secundario do replica set.' },
-  { command: null, text: 'Atualize esta tela e confirme que o no aparece indisponivel.' },
-  { command: null, text: 'Repita a consulta e compare tempo e consistencia.' },
-  { command: 'docker start bd2-mongo2', text: 'Restaure o no parado.' },
-  { command: null, text: 'Aguarde a sincronizacao e atualize o status novamente.' },
+  { command: 'docker stop bd2-mongo2', text: 'Pare um nó secundário do replica set.' },
+  { command: null, text: 'Atualize esta tela e confirme que o nó aparece indisponível.' },
+  { command: null, text: 'Repita a consulta e compare tempo e consistência.' },
+  { command: 'docker start bd2-mongo2', text: 'Restaure o nó parado.' },
+  { command: null, text: 'Aguarde a sincronização e atualize o status novamente.' },
 ]
 
 function formatUptime(seconds) {
@@ -81,7 +81,7 @@ function NodeCard({ member, pending, onStop, onStart }) {
           onClick={isDown ? onStart : onStop}
         >
           {isDown ? <Play data-icon="inline-start" /> : <Square data-icon="inline-start" />}
-          {pending ? 'Aguarde...' : isDown ? 'Restaurar no' : 'Parar no'}
+          {pending ? 'Aguarde...' : isDown ? 'Restaurar nó' : 'Parar nó'}
         </Button>
       </CardContent>
     </Card>
@@ -101,7 +101,7 @@ export default function NodeStatusPage() {
       setData(response.data)
       return response.data
     } catch (err) {
-      const fallback = { ok: false, error: 'Sem conexao com a API', members: [] }
+      const fallback = { ok: false, error: 'Sem conexão com a API', members: [] }
       setData(fallback)
       return fallback
     } finally {
@@ -134,10 +134,10 @@ export default function NodeStatusPage() {
         current = await load({ silent: true })
       }
       if (!changed) {
-        setActionError(`O no ${name} ainda nao refletiu a mudanca de estado apos 30s.`)
+        setActionError(`O nó ${name} ainda não refletiu a mudança de estado após 30s.`)
       }
     } catch (err) {
-      setActionError(err?.response?.data?.detail || `Falha ao executar acao no no ${name}`)
+      setActionError(err?.response?.data?.detail || `Falha ao executar ação no nó ${name}`)
     } finally {
       setPendingNode(null)
     }
@@ -175,7 +175,7 @@ export default function NodeStatusPage() {
       {data && !data.ok && (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>Cluster indisponivel</AlertTitle>
+          <AlertTitle>Cluster indisponível</AlertTitle>
           <AlertDescription>{data.error}</AlertDescription>
         </Alert>
       )}
@@ -183,7 +183,7 @@ export default function NodeStatusPage() {
       {actionError && (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>Falha na acao</AlertTitle>
+          <AlertTitle>Falha na ação</AlertTitle>
           <AlertDescription>{actionError}</AlertDescription>
         </Alert>
       )}
@@ -209,10 +209,10 @@ export default function NodeStatusPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Terminal />
-            Teste de tolerancia a falhas
+            Teste de tolerância a falhas
           </CardTitle>
           <CardDescription>
-            Sequencia usada para demonstrar continuidade da leitura com um no parado.
+            Sequência usada para demonstrar continuidade da leitura com um nó parado.
           </CardDescription>
         </CardHeader>
         <CardContent>

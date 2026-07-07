@@ -25,14 +25,14 @@ const MEMBERS = [
   { name: 'Milton Salgado', dre: '122169279' },
   { name: 'Pedro Saito', dre: '122149392' },
   { name: 'Eduardo Bensabat', dre: '122149392' },
-  { name: 'Gabriel Guimaraes', dre: '122137997' },
+  { name: 'Gabriel Guimarães', dre: '122137997' },
 ]
 
 const WORKFLOW = [
-  { title: 'Normalizacao', icon: Database, text: 'Eventos urbanos no modelo documental canonico.' },
-  { title: 'Consulta', icon: Table2, text: 'Filtros por tipo, periodo, severidade e localizacao.' },
-  { title: 'Analise', icon: BarChart3, text: 'Agregacoes por territorio, gravidade e tempo.' },
-  { title: 'Experimento', icon: Gauge, text: 'Carga de 1k, 50k e 100k registros com falha de no.' },
+  { title: 'Normalização', icon: Database, text: 'Eventos urbanos no modelo documental canônico.' },
+  { title: 'Consulta', icon: Table2, text: 'Filtros por tipo, período, severidade e localização.' },
+  { title: 'Análise', icon: BarChart3, text: 'Agregações por território, gravidade e tempo.' },
+  { title: 'Experimento', icon: Gauge, text: 'Carga de 1k, 50k e 100k registros com falha de nó.' },
 ]
 
 export default function HomePage() {
@@ -41,16 +41,16 @@ export default function HomePage() {
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-h-[360px] flex-col justify-between rounded-lg border bg-card p-6 md:p-8">
           <div className="flex flex-col gap-5">
-            <Badge variant="outline" className="w-fit">
+            <Badge variant="outline" className="w-fit gap-1.5">
               <GraduationCap data-icon="inline-start" />
               UFRJ - Bancos de Dados II
             </Badge>
             <div className="flex max-w-4xl flex-col gap-4">
               <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
-                Sistema Distribuido de Monitoramento e Analise de Eventos Urbanos
+                Sistema Distribuído de Monitoramento e Análise de Eventos Urbanos
               </h2>
               <p className="max-w-3xl text-base leading-7 text-muted-foreground">
-                Aplicacao documental sobre MongoDB replica set para consultar ocorrencias reais de eventos urbanos, analisar distribuicao geografica e registrar experimentos de desempenho.
+                Aplicação documental sobre MongoDB replica set para consultar ocorrências reais de eventos urbanos, analisar distribuição geográfica e registrar experimentos de desempenho.
               </p>
             </div>
           </div>
@@ -69,15 +69,15 @@ export default function HomePage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <Card>
             <CardHeader>
-              <CardDescription>Banco distribuido</CardDescription>
+              <CardDescription>Banco distribuído</CardDescription>
               <CardTitle className="flex items-center gap-2">
                 <Server />
-                3 nos MongoDB
+                3 nós MongoDB
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Replica set `rs0` usado para demonstrar replicacao, leitura apos falha e recuperacao.
+                Replica set `rs0` usado para demonstrar replicação, leitura após falha e recuperação.
               </p>
             </CardContent>
           </Card>
@@ -91,13 +91,13 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Coordenadas em `[longitude, latitude]` para buscas por raio e visualizacao no mapa.
+                Coordenadas em `[longitude, latitude]` para buscas por raio e visualização no mapa.
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardDescription>Pronto para avaliacao</CardDescription>
+              <CardDescription>Pronto para avaliação</CardDescription>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck />
                 Benchmarks reais
