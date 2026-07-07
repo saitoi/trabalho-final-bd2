@@ -325,7 +325,7 @@ export default function BenchmarkPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{benchmarkOnly ? 'Tabela de datasets' : 'Tabela de medicoes'}</CardTitle>
+          <CardTitle>{benchmarkOnly ? 'Tabela de datasets' : 'Tabela de medições'}</CardTitle>
           <CardDescription>
             {benchmarkOnly ? 'Dados do summary de benchmarks.' : 'Dados brutos do arquivo de resultados.'}
           </CardDescription>
