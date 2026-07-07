@@ -3,7 +3,7 @@ import axios from 'axios'
 const api = axios.create({ baseURL: '/api' })
 
 export const getEvents = (params) =>
-  api.get('/events', { params })
+  api.get('/events/', { params })
 
 export const searchEvents = (params) =>
   api.get('/events/search', { params })
@@ -12,7 +12,7 @@ export const getEventFilterOptions = (params) =>
   api.get('/events/filter-options', { params })
 
 export const createEvent = (data) =>
-  api.post('/events', data)
+  api.post('/events/', data)
 
 export const getEventsByPeriod = (inicio, fim) =>
   api.get('/events/by-period', { params: { inicio, fim } })
@@ -43,6 +43,12 @@ export const getStatsTemporal = () =>
 
 export const getNodeStatus = () =>
   api.get('/nodes/status')
+
+export const stopNode = (name) =>
+  api.post(`/nodes/${name}/stop`)
+
+export const startNode = (name) =>
+  api.post(`/nodes/${name}/start`)
 
 export const getBenchmarkResults = () =>
   api.get('/benchmarks/results')

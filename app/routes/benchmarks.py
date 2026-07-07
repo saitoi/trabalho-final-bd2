@@ -9,11 +9,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def get_benchmark_results_path() -> Path:
-    return PROJECT_ROOT / "data/processed/experiments/results.json"
+    return PROJECT_ROOT / "dataset/processed/experiments/results.json"
 
 
 def get_benchmark_summary_path() -> Path:
-    return PROJECT_ROOT / "data/processed/benchmarks/summary.json"
+    return PROJECT_ROOT / "dataset/processed/benchmarks/summary.json"
 
 
 BenchmarkResultsPathDep = Annotated[Path, Depends(get_benchmark_results_path)]

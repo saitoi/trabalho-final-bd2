@@ -123,9 +123,9 @@ def describe(events: list[dict[str, Any]]) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Gera recortes determinísticos de benchmark.")
-    parser.add_argument("--input", default="data/processed/events_normalized.jsonl")
-    parser.add_argument("--out-dir", default="data/processed/benchmarks")
-    parser.add_argument("--samples-dir", default="data/samples")
+    parser.add_argument("--input", default="dataset/processed/events_normalized.jsonl")
+    parser.add_argument("--out-dir", default="dataset/processed/benchmarks")
+    parser.add_argument("--samples-dir", default="dataset/samples")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sizes", default="1000,50000,100000", help="Lista separada por vírgula. Padrão: 1000,50000,100000")
     args = parser.parse_args()

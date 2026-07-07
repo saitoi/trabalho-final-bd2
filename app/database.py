@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
+from pymongo.read_preferences import ReadPreference
 
 load_dotenv()
 
@@ -17,7 +18,7 @@ DB_NAME = os.getenv("MONGO_DB", "bd2")
 
 @lru_cache(maxsize=1)
 def get_mongo_client() -> MongoClient:
-    return MongoClient(MONGO_URI)
+    return MongoClient(MONGO_URI, read_preference=ReadPreference.PRIMARY_PREFERRED)
 
 
 def get_database() -> Database:

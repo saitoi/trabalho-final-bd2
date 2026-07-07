@@ -69,7 +69,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--db", default="bd2")
     parser.add_argument("--collection", default="eventos")
-    parser.add_argument("--metrics", default="data/processed/query_metrics.jsonl")
+    parser.add_argument("--metrics", default="dataset/processed/query_metrics.jsonl")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

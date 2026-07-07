@@ -89,7 +89,7 @@ function normalizeSeverity(rows) {
   const totals = new Map((rows ?? []).map((row) => [Number(row._id), row.total ?? 0]))
   return SEVERITY_LEVELS.map((item) => ({
     ...item,
-    name: `Gravidade ${item.level}`,
+    name: item.label,
     total: totals.get(item.level) ?? 0,
     fill: item.color,
   }))
@@ -258,7 +258,22 @@ export default function DashboardPage() {
           <CardContent className="flex flex-col gap-4">
             <ChartContainer config={chartConfig} className="h-[280px] w-full">
               <PieChart>
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      nameKey="name"
+                      hideLabel
+                      formatter={(value, name) => (
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <span className="text-muted-foreground">{name}</span>
+                          <span className="font-mono font-medium text-foreground tabular-nums">
+                            {formatInt(value)}
+                          </span>
+                        </div>
+                      )}
+                    />
+                  }
+                />
                 <Pie data={data.severity} dataKey="total" nameKey="name" innerRadius={70} outerRadius={120}>
                   {data.severity.map((row) => (
                     <Cell key={row.name} fill={row.fill} />
@@ -274,12 +289,8 @@ export default function DashboardPage() {
                     style={{ backgroundColor: row.fill }}
                     aria-hidden="true"
                   />
-                  <span className="text-muted-foreground">
-                    {row.level} - {row.label}
-                  </span>
-                  <Badge variant="outline" className="ml-auto">
-                    {formatInt(row.total)}
-                  </Badge>
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <Badge variant="outline">{formatInt(row.total)}</Badge>
                 </div>
               ))}
             </div>

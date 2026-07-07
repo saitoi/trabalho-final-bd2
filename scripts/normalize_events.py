@@ -425,10 +425,10 @@ def generate_synthetic(writer: Writer, target_total: int, min_per_type: int, see
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Normaliza fontes raw para o modelo canônico de eventos urbanos.")
-    parser.add_argument("--raw-dir", default="data/raw")
-    parser.add_argument("--out", default="data/processed/events_normalized.jsonl")
-    parser.add_argument("--rejected", default="data/processed/events_rejected.jsonl")
-    parser.add_argument("--summary", default="data/processed/normalization_summary.json")
+    parser.add_argument("--raw-dir", default="dataset/raw")
+    parser.add_argument("--out", default="dataset/processed/events_normalized.jsonl")
+    parser.add_argument("--rejected", default="dataset/processed/events_rejected.jsonl")
+    parser.add_argument("--summary", default="dataset/processed/normalization_summary.json")
     parser.add_argument("--target-total", type=int, default=100000)
     parser.add_argument("--min-per-type", type=int, default=500)
     parser.add_argument("--seed", type=int, default=42)

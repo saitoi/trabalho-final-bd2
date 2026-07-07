@@ -33,14 +33,14 @@ python scripts/inspect_raw_data.py
 
 # Phase 3 — Normalize to canonical schema
 python scripts/normalize_events.py \
-  --raw-dir data/raw \
-  --out data/processed/events_normalized.jsonl \
-  --rejected data/processed/events_rejected.jsonl
+  --raw-dir dataset/raw \
+  --out dataset/processed/events_normalized.jsonl \
+  --rejected dataset/processed/events_rejected.jsonl
 
 # Phase 4 — Build benchmark datasets (1K / 50K / 100K)
 python scripts/build_benchmark_datasets.py \
-  --input data/processed/events_normalized.jsonl \
-  --out-dir data/processed/benchmarks \
+  --input dataset/processed/events_normalized.jsonl \
+  --out-dir dataset/processed/benchmarks \
   --seed 42
 
 # Phase 5 — Start MongoDB Replica Set
@@ -51,7 +51,7 @@ python scripts/create_indexes.py
 
 # Phase 7 — Load data
 python scripts/load_mongo.py \
-  --dataset data/processed/benchmarks/events_100000.jsonl \
+  --dataset dataset/processed/benchmarks/events_100000.jsonl \
   --drop --batch-size 1000
 
 # Phase 8 — Run queries
@@ -77,9 +77,9 @@ docker start mongo2
 ### Three-layer data separation (strict rule — never break this)
 
 ```
-data/raw/        → original files, NEVER modified
-data/processed/  → all transformations write here
-MongoDB          → loaded from data/processed/benchmarks/
+dataset/raw/        → original files, NEVER modified
+dataset/processed/  → all transformations write here
+MongoDB          → loaded from dataset/processed/benchmarks/
 ```
 
 ### Data sources
@@ -118,7 +118,7 @@ Every normalized event must conform to:
   "pais": "Brasil",
   "localizacao": { "type": "Point", "coordinates": [-43.1729, -22.9068] },
   "reportante": { "tipo": "Fonte pública", "identificador": "INPE" },
-  "origem": { "fonte": "inpe_bdqueimadas", "idOriginal": "...", "arquivoRaw": "data/raw/..." },
+  "origem": { "fonte": "inpe_bdqueimadas", "idOriginal": "...", "arquivoRaw": "dataset/raw/..." },
   "metadados": { "categoriaOriginal": "...", "linhaOriginal": 123, "extraidoEm": "..." }
 }
 ```
@@ -127,7 +127,7 @@ Critical invariants:
 - `localizacao.coordinates` is `[longitude, latitude]` (GeoJSON order)
 - `dataHora` is ISO 8601
 - `gravidade` is integer 1–5
-- Records without valid coordinates → `data/processed/events_rejected.jsonl` (never invented values)
+- Records without valid coordinates → `dataset/processed/events_rejected.jsonl` (never invented values)
 - Missing fields → `null`, not fabricated values
 
 ### Consolidated event types (taxonomy)

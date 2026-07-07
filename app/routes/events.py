@@ -17,6 +17,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 EventsCollectionDep = Annotated[Collection, Depends(get_events_collection)]
 
 ALLOWED_DOCUMENT_FIELDS = {
+    "descricao",
     "origem.fonte",
     "origem.idOriginal",
     "origem.arquivoRaw",
@@ -84,6 +85,7 @@ def _search_query(
     bairro: str | None,
     status: str | None,
     min_gravidade: int | None,
+    max_gravidade: int | None,
     inicio: str | None,
     fim: str | None,
     document_field: str | None,
@@ -96,7 +98,6 @@ def _search_query(
         query["$or"] = [
             {"idEvento": regex},
             {"tipo": regex},
-            {"descricao": regex},
             {"cidade": regex},
             {"bairro": regex},
             {"status": regex},
@@ -112,8 +113,13 @@ def _search_query(
     }.items():
         if value:
             query[field] = value
+    gravidade_query: dict[str, int] = {}
     if min_gravidade is not None:
-        query["gravidade"] = {"$gte": min_gravidade}
+        gravidade_query["$gte"] = min_gravidade
+    if max_gravidade is not None:
+        gravidade_query["$lte"] = max_gravidade
+    if gravidade_query:
+        query["gravidade"] = gravidade_query
     date_query = _date_boundaries(inicio, fim)
     if date_query:
         query["dataHora"] = date_query
@@ -157,6 +163,7 @@ def search_events(
     bairro: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     minGravidade: Annotated[int | None, Query(ge=1, le=5)] = None,
+    maxGravidade: Annotated[int | None, Query(ge=1, le=5)] = None,
     inicio: Annotated[str | None, Query()] = None,
     fim: Annotated[str | None, Query()] = None,
     documentField: Annotated[str | None, Query()] = None,
@@ -178,6 +185,7 @@ def search_events(
         bairro=bairro,
         status=status,
         min_gravidade=minGravidade,
+        max_gravidade=maxGravidade,
         inicio=inicio,
         fim=fim,
         document_field=documentField,

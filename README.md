@@ -26,7 +26,7 @@ Para executar o fluxo ponta a ponta em um clone novo:
 ./pipeline.sh
 ```
 
-Se `.env` não existir, o script cria uma cópia de `.env.example` e avisa o usuário. Por padrão ele tenta completar `data/raw/`, rodando extração apenas para fontes ainda ausentes. Fontes manuais geram instruções, e Fogo Cruzado só é baixado se `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD` estiverem preenchidos no `.env`.
+Se `.env` não existir, o script cria uma cópia de `.env.example` e avisa o usuário. Por padrão ele tenta completar `dataset/raw/`, rodando extração apenas para fontes ainda ausentes. Fontes manuais geram instruções, e Fogo Cruzado só é baixado se `FOGO_CRUZADO_EMAIL` e `FOGO_CRUZADO_PASSWORD` estiverem preenchidos no `.env`.
 
 ```bash
 RUN_EXTRACT=1 ./pipeline.sh    # forçar extração
@@ -40,17 +40,17 @@ RUN_EXPERIMENTS=1 ./pipeline.sh  # incluir experimentos completos
 uv run --script scripts/inspect_raw_data.py
 
 uv run --script scripts/normalize_events.py \
-  --raw-dir data/raw \
-  --out data/processed/events_normalized.jsonl \
-  --rejected data/processed/events_rejected.jsonl
+  --raw-dir dataset/raw \
+  --out dataset/processed/events_normalized.jsonl \
+  --rejected dataset/processed/events_rejected.jsonl
 
 uv run --script scripts/build_benchmark_datasets.py \
-  --input data/processed/events_normalized.jsonl \
-  --out-dir data/processed/benchmarks \
+  --input dataset/processed/events_normalized.jsonl \
+  --out-dir dataset/processed/benchmarks \
   --seed 42
 ```
 
-Os dados em `data/raw/` nunca são modificados. O Git versiona apenas `data/raw/.gitkeep`.
+Os dados em `dataset/raw/` nunca são modificados. O Git versiona apenas `dataset/raw/.gitkeep`.
 
 ---
 
@@ -71,7 +71,7 @@ uv run --script scripts/create_indexes.py
 
 ```bash
 uv run --script scripts/load_mongo.py \
-  --dataset data/processed/benchmarks/events_100000.jsonl \
+  --dataset dataset/processed/benchmarks/events_100000.jsonl \
   --drop \
   --batch-size 1000
 
@@ -180,7 +180,7 @@ O frontend sobe em `http://localhost:3000`. As chamadas `/api/*` são automatica
 │   ├── main.py
 │   ├── database.py
 │   └── routes/
-├── data/
+├── dataset/
 │   ├── raw/                # Dados originais (nunca modificados, não versionados)
 │   └── processed/          # Dados transformados (não versionados)
 ├── docker/                 # Docker Compose + init do Replica Set

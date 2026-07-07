@@ -439,7 +439,7 @@ def test_benchmarks_results_falls_back_to_dataset_summary(tmp_path):
           "generated_at": "2026-07-04T20:32:05Z",
           "datasets": {
             "1000": {
-              "path": "data/processed/benchmarks/events_1000.jsonl",
+              "path": "dataset/processed/benchmarks/events_1000.jsonl",
               "total": 1000,
               "by_type": {"Incêndio": 83},
               "by_country": {"Brasil": 419},
@@ -475,8 +475,8 @@ def test_benchmark_paths_are_resolved_from_project_root(tmp_path, monkeypatch):
 
     assert results_path.is_absolute()
     assert summary_path.is_absolute()
-    assert results_path.as_posix().endswith("/data/processed/experiments/results.json")
-    assert summary_path.as_posix().endswith("/data/processed/benchmarks/summary.json")
+    assert results_path.as_posix().endswith("/dataset/processed/experiments/results.json")
+    assert summary_path.as_posix().endswith("/dataset/processed/benchmarks/summary.json")
 
 
 def test_benchmarks_results_returns_empty_state_when_file_is_missing(tmp_path):
