@@ -23,23 +23,32 @@ export const getEventsByLocation = (lat, lon, km, limit) =>
 export const getEventsBySeverity = (min) =>
   api.get('/events/by-severity', { params: { min } })
 
-export const getStatsByType = () =>
-  api.get('/stats/by-type')
+export const getStatsByType = (params) =>
+  api.get('/stats/by-type', { params })
 
-export const getStatsSummary = () =>
-  api.get('/stats/summary')
+export const getStatsSummary = (params) =>
+  api.get('/stats/summary', { params })
 
-export const getStatsByNeighborhood = () =>
-  api.get('/stats/by-neighborhood')
+export const getStatsByNeighborhood = (params) =>
+  api.get('/stats/by-neighborhood', { params })
 
-export const getStatsBySeverity = () =>
-  api.get('/stats/by-severity')
+export const getStatsByNeighborhoodType = (params) =>
+  api.get('/stats/by-neighborhood-type', { params })
 
-export const getStatsByReporter = () =>
-  api.get('/stats/by-reporter')
+export const getStatsByWeekday = (params) =>
+  api.get('/stats/by-weekday', { params })
 
-export const getStatsTemporal = () =>
-  api.get('/stats/temporal')
+export const getStatsBySeverity = (params) =>
+  api.get('/stats/by-severity', { params })
+
+export const getStatsByReporter = (params) =>
+  api.get('/stats/by-reporter', { params })
+
+export const getStatsTemporal = (params) =>
+  api.get('/stats/temporal', { params })
+
+export const getStatsTemporalByType = (params) =>
+  api.get('/stats/temporal-by-type', { params })
 
 export const getNodeStatus = () =>
   api.get('/nodes/status')
